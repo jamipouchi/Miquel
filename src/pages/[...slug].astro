@@ -1,0 +1,37 @@
+---
+import { getCollection } from 'astro:content';
+import TreeNav from '../components/TreeNav.astro';
+
+export async function getStaticPaths() {
+  const allPages = await getCollection('pages');
+  
+  const paths = allPages
+    .map(page => ({
+      params: { slug: page.slug },
+      props: { page }
+    }));
+
+  return paths;
+}
+
+const { page } = Astro.props;
+const { Content } = await page.render();
+
+const title = page.slug.split('/').pop();
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>{title}</title>
+    <link rel="stylesheet" href="/styles/global.css" />
+  </head>
+  <body>
+    <article class="prose">
+      <Content />
+      <TreeNav currentSlug={page.slug} />
+    </article>
+  </body>
+</html>
+

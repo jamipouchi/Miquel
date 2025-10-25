@@ -1,0 +1,72 @@
+---
+// No imports needed - static page
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Meta</title>
+    <link rel="stylesheet" href="/styles/global.css" />
+  </head>
+  <body>
+    <article class="prose">
+      <h1>Meta</h1>
+      
+      <p>This page explains how this site is built and structured.</p>
+      
+      <h2>Philosophy</h2>
+      
+      <p>This site is designed to be a personal knowledge base — a collection of thoughts, ideas, and reflections organized hierarchically by topic. The design philosophy emphasizes simplicity: write markdown, organize by folders, and the site structure emerges naturally.</p>
+      
+      <h2>Technical Stack</h2>
+      
+      <p>Built with <a href="https://astro.build/">Astro</a> using content collections. No complex CMS, no database — just markdown files in a folder structure.</p>
+
+      <p>Deployed to <a href="https://miquel.workers.dev">Cloudflare Workers</a>.</p>
+      
+      <h2>How It Works</h2>
+      
+      <h3>Content Structure</h3>
+      
+      <p>All content lives in <code>src/content/pages/</code> as markdown files:</p>
+      
+      <pre><code>src/content/pages/
+├── index.md           → / (home)
+├── health/
+│   ├── index.md       → /health/ (branch page)
+│   └── addictions.md  → /health/addictions/ (leaf page)
+└── work/
+    ├── index.md       → /work/ (branch page)
+    └── temporal/
+        └── scaling-workers.md</code></pre>
+      
+      <p><strong>Folder structure = site structure.</strong> No configuration needed.</p>
+      
+      <h2>Automatic Routing</h2>
+      
+      <p>Three route files handle all pages:</p>
+      
+      <ul>
+        <li><code>index.astro</code> - Home page with custom layout (<code>/</code>)</li>
+        <li><code>meta.astro</code> - Static meta page (<code>/meta/</code>)</li>
+        <li><code>[...slug].astro</code> - All other content pages with unified layout</li>
+      </ul>
+      
+      <h2>Design Choices</h2>
+      
+      <p><strong>No dark mode</strong>: We are professionals, not guys coding under the covers of their bed.</p>
+      
+      <p><strong>No frontmatter required</strong>: It's either easy to forget or easy to invest too much in customizing it.</p>
+
+      <p><strong>Hierarchy</strong>: Visual hierarchy matches content hierarchy — home is special, branches organize, leaves contain</p>
+
+      
+      <h2>Source</h2>
+      
+      <p>The original implementation of this site was built with cursor through a conversation with Claude 4.5 sonnet. You can read the <a href="/meta/chat-transcript/">full chat transcript</a> to see how it was designed and implemented.</p>
+      <p>Further history can be seen at <a href="todo">todo</a>.</p>
+    </article>
+  </body>
+</html>
+

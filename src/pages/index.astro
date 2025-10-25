@@ -1,0 +1,82 @@
+---
+import TreeNav from '../components/TreeNav.astro';
+
+import Content from '../content/pages/index.md';
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Home</title>
+    <link rel="stylesheet" href="/styles/global.css" />
+  </head>
+  <body>
+    <article class="prose home">
+      <Content />
+      <TreeNav currentSlug="index" />
+    </article>
+
+    <style>
+      .prose.home h1 {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        background: linear-gradient(135deg, #0066cc 0%, #0052a3 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      .home-sections {
+        list-style: none;
+        padding: 0;
+        margin-top: 2rem;
+        display: grid;
+        gap: 1rem;
+      }
+
+      .home-sections li {
+        margin: 0;
+        padding: 0;
+      }
+
+      .home-sections a {
+        display: block;
+        padding: 1.5rem 1.75rem;
+        background-color: #fff;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        transition: all 0.25s ease;
+        text-decoration: none;
+      }
+
+      .home-sections a:hover {
+        border-color: #0066cc;
+        box-shadow: 0 4px 12px rgba(0, 102, 204, 0.15);
+        transform: translateY(-2px);
+      }
+
+      .section-name {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #0066cc;
+        text-transform: capitalize;
+      }
+
+      .home-sections a:hover .section-name {
+        color: #0052a3;
+      }
+
+      @media (max-width: 640px) {
+        .prose.home h1 {
+          font-size: 2.25rem;
+        }
+        
+        .home-sections a {
+          padding: 1.25rem 1.5rem;
+        }
+      }
+    </style>
+  </body>
+</html>
+

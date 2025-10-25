@@ -1,0 +1,209 @@
+---
+import { getCollection } from 'astro:content';
+
+interface Props {
+  currentSlug: string;
+}
+
+const { currentSlug } = Astro.props;
+const allPages = await getCollection('pages');
+
+// Helper to get all unique folder paths from pages
+function getAllFolderPaths(parentPath: string): string[] {
+  const folders = new Set<string>();
+  
+  const prefix = parentPath ? parentPath + '/' : '';
+  const prefixLen = prefix.length;
+  
+  for (const page of allPages) {
+    if (page.slug === 'index' || page.slug === 'meta') continue;
+    if (parentPath && !page.slug.startsWith(prefix)) continue;
+    if (!parentPath && page.slug.includes('/') && page.slug.split('/')[0] === page.slug) continue;
+    
+    const afterPrefix = parentPath ? page.slug.slice(prefixLen) : page.slug;
+    const parts = afterPrefix.split('/');
+    
+    // If there's at least one segment, that's a direct child folder or page
+    if (parts.length >= 1 && parts[0]) {
+      folders.add(parts[0]);
+    }
+  }
+  
+  return Array.from(folders).sort();
+}
+
+// Build a simple flat list of nodes to display
+function buildTreeNodes() {
+  const nodes: any[] = [];
+  
+  // Always show root
+  const rootPage = allPages.find(p => p.slug === 'index');
+  if (!rootPage) return nodes;
+  
+  const isCurrentRoot = currentSlug === 'index';
+  const currentParts = currentSlug === 'index' ? [] : currentSlug.split('/');
+  
+  // Add root
+  nodes.push({
+    page: rootPage,
+    slug: 'index',
+    isCurrent: isCurrentRoot,
+    isAncestor: currentParts.length > 0,
+    level: 0
+  });
+  
+  if (isCurrentRoot) {
+    // At root: show all top-level pages as siblings
+    const topLevelNames = getAllFolderPaths('').filter(name => name !== 'meta');
+    for (const name of topLevelNames) {
+      const topPage = allPages.find(p => p.slug === name);
+      nodes.push({
+        page: topPage,
+        slug: name,
+        isCurrent: false,
+        isAncestor: false,
+        level: 1
+      });
+    }
+  } else {
+    // Build path: ancestors -> siblings + current + children
+    for (let i = 0; i < currentParts.length; i++) {
+      const pathSoFar = currentParts.slice(0, i + 1).join('/');
+      const isCurrentLevel = i === currentParts.length - 1;
+      const parentPath = i > 0 ? currentParts.slice(0, i).join('/') : '';
+      
+      if (isCurrentLevel) {
+        // At current level: show siblings with current, and nest children under current
+        const siblingNames = getAllFolderPaths(parentPath || '').filter(name => name !== 'meta');
+        const childNames = getAllFolderPaths(currentSlug);
+        
+        for (const name of siblingNames) {
+          const siblingSlug = parentPath ? `${parentPath}/${name}` : name;
+          const siblingPage = allPages.find(p => p.slug === siblingSlug);
+          const isCurrent = siblingSlug === currentSlug;
+          
+          // Add the sibling/current node
+          nodes.push({
+            page: siblingPage,
+            slug: siblingSlug,
+            isCurrent,
+            isAncestor: false,
+            level: i + 1
+          });
+          
+          // If this is the current node, immediately add its children
+          if (isCurrent) {
+            for (const childName of childNames) {
+              const childSlug = `${currentSlug}/${childName}`;
+              const childPage = allPages.find(p => p.slug === childSlug);
+              nodes.push({
+                page: childPage,
+                slug: childSlug,
+                isCurrent: false,
+                isAncestor: false,
+                level: i + 2
+              });
+            }
+          }
+        }
+      } else {
+        // Ancestor: just show this one node in the path
+        const ancestorPage = allPages.find(p => p.slug === pathSoFar);
+        nodes.push({
+          page: ancestorPage,
+          slug: pathSoFar,
+          isCurrent: false,
+          isAncestor: true,
+          level: i + 1
+        });
+      }
+    }
+  }
+  
+  return nodes;
+}
+
+const treeNodes = buildTreeNodes();
+
+// Render each node with proper naming
+const renderedNodes = treeNodes.map(node => {
+  let name = node.slug === 'index' ? 'HOME' : node.slug.split('/').pop();
+  
+  // Check if this page has children in the actual collection
+  const hasChildren = getAllFolderPaths(node.slug).length > 0;
+  
+  // Capitalize branch pages (pages with children), but not home (already all caps)
+  if (hasChildren && node.slug !== 'index') {
+    name = name.charAt(0).toUpperCase() + name.slice(1);
+  }
+  
+  const url = node.slug === 'index' ? '/' : `/${node.slug}/`;
+  
+  return {
+    ...node,
+    name,
+    url
+  };
+});
+---
+
+<nav class="tree-nav">
+  <ul class="tree-list">
+    {renderedNodes.map((node) => (
+      <li 
+        class:list={[
+          'tree-item',
+          { 'current': node.isCurrent },
+          { 'ancestor': node.isAncestor }
+        ]}
+        style={`--indent: ${node.level}`}
+      >
+        <a href={node.url}>{node.name}</a>
+      </li>
+    ))}
+  </ul>
+</nav>
+
+<style>
+  .tree-nav {
+    margin-top: 4rem;
+    padding-top: 2rem;
+    border-top: 1px solid #e0e0e0;
+  }
+
+  .tree-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-size: 0.9rem;
+  }
+
+  .tree-item {
+    margin: 0;
+    padding: 0.35rem 0;
+    padding-left: calc(var(--indent) * 1.5rem);
+  }
+
+  .tree-item a {
+    color: #666;
+    text-decoration: none;
+    transition: color 0.2s ease;
+  }
+
+  .tree-item a:hover {
+    color: #0066cc;
+    text-decoration: none;
+  }
+
+  .tree-item.current a {
+    color: #0066cc;
+    font-weight: 600;
+  }
+
+  .tree-item.ancestor a {
+    color: #333;
+    font-weight: 500;
+  }
+</style>
+
