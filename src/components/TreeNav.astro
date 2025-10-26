@@ -16,7 +16,7 @@ function getAllFolderPaths(parentPath: string): string[] {
   const prefixLen = prefix.length;
   
   for (const page of allPages) {
-    if (page.slug === 'index' || page.slug === 'meta') continue;
+    if (page.slug === 'index' || page.slug === 'meta' || page.slug === 'chat-transcript') continue;
     if (parentPath && !page.slug.startsWith(prefix)) continue;
     if (!parentPath && page.slug.includes('/') && page.slug.split('/')[0] === page.slug) continue;
     
@@ -54,7 +54,7 @@ function buildTreeNodes() {
   
   if (isCurrentRoot) {
     // At root: show all top-level pages as siblings
-    const topLevelNames = getAllFolderPaths('').filter(name => name !== 'meta');
+    const topLevelNames = getAllFolderPaths('').filter(name => !name.includes('meta'));
     for (const name of topLevelNames) {
       const topPage = allPages.find(p => p.slug === name);
       nodes.push({
@@ -74,7 +74,7 @@ function buildTreeNodes() {
       
       if (isCurrentLevel) {
         // At current level: show siblings with current, and nest children under current
-        const siblingNames = getAllFolderPaths(parentPath || '').filter(name => name !== 'meta');
+        const siblingNames = getAllFolderPaths(parentPath || '').filter(name => !name.includes('meta'));
         const childNames = getAllFolderPaths(currentSlug);
         
         for (const name of siblingNames) {

@@ -1,4 +1,6 @@
 ---
+import '../styles/global.css';
+import CommonHead from '../components/CommonHead.astro';
 import TreeNav from '../components/TreeNav.astro';
 
 import Content from '../content/pages/index.md';
@@ -6,10 +8,7 @@ import Content from '../content/pages/index.md';
 
 <html lang="en">
   <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width" />
-    <title>Home</title>
-    <link rel="stylesheet" href="/styles/global.css" />
+    <CommonHead title="Home" />
   </head>
   <body>
     <article class="prose home">
