@@ -127,7 +127,7 @@ const treeNodes = buildTreeNodes();
 
 // Render each node with proper naming
 const renderedNodes = treeNodes.map(node => {
-  let name = node.slug === 'index' ? 'HOME' : node.slug.split('/').pop();
+  let name = node.slug === 'index' ? 'HOME' : node.slug.split('/').pop()?.replace(/-/g, ' ');
   
   // Check if this page has children in the actual collection
   const hasChildren = getAllFolderPaths(node.slug).length > 0;

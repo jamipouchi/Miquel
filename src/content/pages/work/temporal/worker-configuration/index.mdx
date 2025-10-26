@@ -1,0 +1,229 @@
+import Tooltip from '../../../../../components/Tooltip.astro'
+
+# Worker configuration (_Node_)
+
+This is a walkthrough of my experience running workers on Node for [Genesy](https://genesy.ai/).
+
+It focuses on worker configuration, as I found the current (as of Oct 2025) defaults and documentation to be misguiding, and want to share my findings, as this is [not only a me-issue](https://temporalio.slack.com/archives/CTRCR8RBP/p1761316809891479).
+
+Readers should understand workers and worker/server interaction before reading this article. ([a good resource](https://temporal.io/blog/building-reliable-distributed-systems-in-node-js-part-2))
+
+_Fun fact_: This article is the reason this site exists.
+
+<details style="padding: 1rem;">
+<summary style="font-size: 1.5em; font-weight: bold; cursor: pointer; margin-bottom: 1rem;">Background</summary>
+
+We run two <Tooltip text="Each service simply runs a worker">services </Tooltip>
+
+-   **Enrich**: User actions are not processed in the API directly, they are off-loaded to this service, which makes sure that they are processed reliably. I wrote my [CS bachelor's thesis](https://upcommons.upc.edu/entities/publication/d8662ade-c751-4257-bc1f-fb2f8245199d) on why we decided on this, and how I coded the primitives that allow it to work well.
+-   **Conversation**: Genesy offers [automated campaigns](https://www.genesy.ai/#:~:text=Conditional%20Campaigns), which are likely the most advanced conditional campaign system that exist on any tool. Each campaign has an identity which targets contacts, with which a conversation is started. Each conversation runs as an entity workflow, and identity actions are centralized in a manager workflow.
+
+Even though the learnings apply to both services, most of the investigation comes from the **Conversation** service, as we want it to scale to infinity reliably (started in February with &lt;50k active conversations, in October it handles &gt;500k).
+
+### Why did I start looking into this
+
+Users can see conversations in Genesy via the _inbox_. The inbox also allows sending messages directly.
+
+There's nothing worse for users than sending a message twice. To avoid this, we use [updates](https://docs.temporal.io/encyclopedia/workflow-message-passing) to prompt the manager workflow to send the message, and get a response (whether it was successful or not).
+
+If the manager workflow is not responsive, then the update fails, and the user is sad. As my main job is to make users happy, this had to be solved.
+
+### Priority
+
+_6th of march_, Temporal [announced](https://github.com/temporalio/temporal/issues/1507#issuecomment-2703831058) priority and fairness.
+
+It took 3 months of [me complaining](https://temporalio.slack.com/archives/C08GSTH8WEM/p1758618625126139) that it wasn't working, until priority was an actual useful feature.
+
+I thought that priority would solve this problem. Simply prioritize manager workflows over conversation workflows. \
+Then we only need to make sure that we can handle _hundreds_ of workflows immediately instead of _hundreds of thousands_.
+
+</details>
+
+## Discovering the problem
+
+I started experimenting with how to make sure `priorityKey=1` workflows are always responsive no matter how many higher priority workflows needed processing. An easy way to do it was to limit the number of instances of the service, and thus of workers.
+
+Previously, up to 50 instances were running at a time, as our best guess on making `priorityKey=1` workflows responsive was to process everything instantly. \
+I cut down to 10 instances, and at peak times, workers were <Tooltip text="By saturated I mean that for the task queue, the backlog increases: tasksAddRate > tasksDispatchRate">saturated</Tooltip>.
+
+<figure style="margin: 2rem 0; text-align: center;">
+    <img
+        src="/work/temporal/worker-configuration/stats-by-prioQ.png"
+        alt="stats by prioQ"
+        style="max-width: 50%;"
+    />
+    <figcaption style="font-style: italic; margin-top: 0.5rem; color: #666;">
+        Stats for the conversation task queue by priority key
+    </figcaption>
+</figure>
+
+Even though it looks great, as the backlog age is less than one second for `priorityKey=1`, it performed worse. \
+That day, we went from ~97% success on users sending messages to ~85%.
+
+At this point, tasks were picked up by workers almost instantly, yet they failed. Why?? \
+Looking at metrics, many workflow tasks were failing due to `status_code=not_found`
+
+<figure style="margin: 2rem 0;">
+    <img
+        src="/work/temporal/worker-configuration/failures-workflowtasklatency.png"
+        alt="workflow task failures and latency"
+        style="max-width: 100%;"
+    />
+    <figcaption style="text-align: center; font-style: italic; margin-top: 0.5rem; color: #666;">
+        Workflow task failures and latency
+    </figcaption>
+</figure>
+
+It's obvious from the image that the failures are related to the <Tooltip text="Time since the worker picks up the task until it responds to the temporal server">task execution latency</Tooltip>. _kappa_ agreed:
+
+```plaintext
+metric temporal_request_failure with operation=RespondWorkflowTaskCompleted and
+status_code=NOT_FOUND indicates that a worker attempted to report the completion
+of a workflow task, but the Temporal service could not find the corresponding
+workflow task. This typically happens when the workflow task has already timed
+out—meaning the worker did not respond within the default 10-second timeout window
+```
+
+The worker was taking more than 10 seconds (default start-to-close timeout) to complete the task. \
+That was a surprise, as workflow tasks are lightweight, and should take tens to hundreds of milliseconds at most.
+
+## Understanding worker configuration
+
+The worker configuration is defined on the `worker.create` method. Here we focus on performance-related options.
+
+### Task execution and polling
+
+Each worker has a number of pollers and slots for each <Tooltip text="workflow/activity/local-activity/nexus">task type</Tooltip>. The pollers grab tasks from the Temporal server, and the slots execute them.
+The reasoning behind having multiple pollers and not just one is due to performance. From the code docs:
+
+```plaintext
+In general, a Workflow Worker's performance is mostly network bound (due to
+communication latency with the Temporal server). Accepting multiple Workflow
+Tasks concurrently helps compensate for network latency, until the point
+where the Worker gets CPU bound.
+```
+
+There are two ways to configure this: \
+The original way, using maxConcurrent<Tooltip text="workflow/activity/local-activity/nexus task">\<taskType></Tooltip>Executions and maxConcurrent<Tooltip text="workflow/activity/local-activity/nexus task">\<taskType></Tooltip>Polls. \
+The new way, using the `tuner`, which grants slots until a targetCpu and targetMemory are reached.
+
+There's also the `nonStickyToStickyPollRatio`, which is a very useful optimization along with `maxCachedWorkflows`, to avoid having to replay workflows. This should be set according to your workload patterns. \
+The docs on it are good, so I won't go deeper into it here.
+
+_We will focus on workflow and activity tasks, which are likely almost all the tasks that are executed._
+
+<figure style="margin: 2rem 0;">
+    <img
+        src="/work/temporal/worker-configuration/failures-slots.png"
+        alt="workflow task failures and slots"
+        style="max-width: 100%;"
+    />
+    <figcaption style="text-align: center; font-style: italic; margin-top: 0.5rem; color: #666;">
+        Workflow task failures and slots
+    </figcaption>
+</figure>
+
+Looking at metrics for number of <Tooltip text="slots are tasks being executed concurrently">slots</Tooltip>, we can see that the number of workflow slots is directly related to the number of tasks failing, and through the previous relationship, the number of workflow tasks timing out.
+
+### Are tasks really executed concurrently?
+
+The previous quote from the docs suggests that workflow tasks are executed concurrently. This is a lie. \
+It also suggests that performance is mostly network bound. For workflow tasks, this also is a lie.
+
+Workflow tasks cause the worker to replay the workflow history (unless they are cached) and then execute the code until the next await, where started activities/timers etc. are sent to the Temporal server. \
+Thus, they are completely CPU bound, and the event loop is blocked from when the workflow task starts until it completes.
+
+`maxConcurrentWorkflowTaskExecutions` is the worst name this could have. For a parallel runtime, such as Go, it could be called `maxParallelWorkflowTaskExecutions`, but for Node and the event loop, it should be called `maxWorkflowTaskBacklogSize`, as it is the number of workflow tasks that the worker has picked up via the pollers, and are waiting to be executed, one by one.
+
+We were using the `tuner`, targeting 0.8 CPU and 0.6 memory usage, with a workflow task <Tooltip text="time before handling new slots">rampThrottle</Tooltip> of 100ms. Without the rampThrottle, we would get a lot of "out of memory" errors, as the worker would try to execute too many tasks at once.
+
+<figure style="margin: 2rem 0;">
+    <img
+        src="/work/temporal/worker-configuration/50+pollers-cpu.png"
+        alt="50+ slots CPU usage"
+        style="max-width: 100%;"
+    />
+    <figcaption style="text-align: center; font-style: italic; margin-top: 0.5rem; color: #666;">
+        50+ slots CPU usage
+    </figcaption>
+</figure>
+
+The tuner worked for memory, but it was completely useless for CPU. Due to Node's single-threaded event loop, CPU usage on a single instance is not a useful metric for tuning. Either the event loop is filled and it's using 100% CPU, or it's not and it uses much less CPU.
+
+The tuner grants way too many workflow slots (50+ for both our services), and the backlog of tasks gets so big, that when the worker processes them, they have already timed out. \
+So what's happening is that the worker is burning CPU cycles processing tasks for which the result is thrown away.
+
+This can be clearly seen in the Workflow Task failures and slots metrics, where reducing the number of slots directly reduces the number of tasks failing:
+
+<figure style="margin: 2rem 0;">
+    <img
+        src="/work/temporal/worker-configuration/failures-slots.png"
+        alt="workflow task failures and slots"
+        style="max-width: 100%;"
+    />
+    <figcaption style="text-align: center; font-style: italic; margin-top: 0.5rem; color: #666;">
+        Workflow task failures and slots
+    </figcaption>
+</figure>
+
+If no configuration is used (no tuner, no maxConcurrentWorkflowTaskExecutions), the worker will use the default configuration, which is 40 workflow slots. (still way too many)
+
+### Is the default worker configuration that bad?
+
+Well... It's not that bad. For activity tasks, it works well, as they are actually executed concurrently, and are network bound (requests to db, external services, etc.). \
+For parallel programming languages (like go and java, which are likely Temporal's target languages), it also makes sense (though I would limit the number of workflow tasks anyway).
+
+It just doesn't make sense for a single-threaded runtime like node.
+
+## Current worker configuration
+
+We now use the following configuration:
+
+```typescript
+const config = {
+    ... other things
+    tuner = {
+        workflowTaskSlotSupplier: {
+            type: 'fixed-size',
+            numSlots: X (6 for conversation, 12 for enrich),
+        },
+        activityTaskSlotSupplier: {
+            type: 'resource-based',
+            rampThrottle: '100 ms',
+            tunerOptions: {
+                targetCpuUsage: 1.0,
+                targetMemoryUsage: 0.6,
+            },
+        },
+        // local and nexus tasks don't really matter
+    },
+    nonStickyToStickyPollRatio: Y (0.4 for conversation, 0.5 for enrich),
+    maxCachedWorkflows: Z (100 for conversation, 300 for enrich),
+}
+```
+
+The difference between conversation and enrich is that conversation workflow tasks are slower, due to replay, and more of the conversation workflows end up not being sticky.
+
+<figure style="margin: 2rem 0;">
+    <img
+        src="/work/temporal/worker-configuration/saturated-wftask-latency.png"
+        alt="workflow tasks latency"
+        style="max-width: 100%;"
+    />
+    <img
+        src="/work/temporal/worker-configuration/saturated-wftasks-failures.png"
+        alt="workflow tasks failures"
+        style="max-width: 100%;"
+    />
+    <figcaption style="text-align: center; font-style: italic; margin-top: 0.5rem; color: #666;">
+        Workflow tasks latency and failures with 6 slots
+    </figcaption>
+</figure>
+
+Running the same load, we can see that with 6 slots, there are no failures, and that the **maximum** time that workflow tasks take to process is close to the start-to-close timeout.
+With this configuration, 100% of users sending messages succeed.
+
+### Why not just 1 slot?
+
+Even though the quoted docs are misleading for Node.js, it's still useful to have multiple slots. We want to ensure that when we free a slot (complete a workflow task), we can immediately start a new one. \
+I'll monitor performance, but it's possible that I'll reduce the slots to 4.

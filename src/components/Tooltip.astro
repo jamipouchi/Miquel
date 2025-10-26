@@ -1,0 +1,41 @@
+---
+interface Props {
+  text: string;
+}
+
+const { text } = Astro.props;
+---
+
+<span 
+  class="tooltip-wrapper"
+  onmouseenter="this.querySelector('.tooltip').style.display='block'" 
+  onmouseleave="this.querySelector('.tooltip').style.display='none'"
+>
+  <slot />
+  <span class="tooltip">{text}</span>
+</span>
+
+<style>
+  .tooltip-wrapper {
+    position: relative;
+    text-decoration: underline dotted;
+    cursor: help;
+  }
+
+  .tooltip {
+    display: none;
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #333;
+    color: white;
+    padding: 0.5rem;
+    border-radius: 4px;
+    white-space: nowrap;
+    font-size: 0.85rem;
+    margin-bottom: 5px;
+    z-index: 1000;
+  }
+</style>
+
