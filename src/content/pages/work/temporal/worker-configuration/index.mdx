@@ -227,3 +227,11 @@ With this configuration, 100% of users sending messages succeed.
 
 Even though the quoted docs are misleading for Node.js, it's still useful to have multiple slots. We want to ensure that when we free a slot (complete a workflow task), we can immediately start a new one. \
 I'll monitor performance, but it's possible that I'll reduce the slots to 4.
+
+## Running workers in production
+
+This article is related to worker configuration, but to run workers in production, infrastructure also needs to be considered.
+
+Workers should run on fixed-size instances and scale horizontally. (We use ECS Fargate)
+
+Scaling should be done on average across worker instances CPU usage, and either task backlog count or backlog age. (We send task queue metrics to CloudWatch)
