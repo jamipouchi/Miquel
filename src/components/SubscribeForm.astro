@@ -2,7 +2,6 @@
 interface Props {
   path: string;
 }
-
 const { path } = Astro.props;
 ---
 
@@ -24,7 +23,7 @@ const { path } = Astro.props;
     Get notified for updates in <strong>{path}</strong> or any subpaths.
   </p>
   
-  <form id="subscribe-form" data-path={path} method="post" action="javascript:void(0);">
+  <form id="subscribe-form" data-path={path} class="subscribe-form" method="post">
     <input 
       type="email" 
       id="email-input"
@@ -32,17 +31,18 @@ const { path } = Astro.props;
       placeholder="your@email.com" 
       required 
       aria-label="Email address"
+      class="email-input"
     />
-    <button type="submit" id="subscribe-button">
+    <button type="submit" id="subscribe-button" class="subscribe-button">
       Subscribe
     </button>
   </form>
   
-  <div id="subscribe-message" class="message" role="alert" aria-live="polite"></div>
+  <div id="subscribe-message" class="subscribe-message message" role="alert" aria-live="polite"></div>
 </div>
 
 <!-- Modal -->
-<div id="subscribe-modal" class="modal" role="dialog" aria-labelledby="modal-title" aria-hidden="true">
+<div id="subscribe-modal" class="subscribe-modal modal" role="dialog" aria-labelledby="modal-title" aria-hidden="true">
   <div class="modal-overlay" id="modal-overlay"></div>
   <div class="modal-content">
     <div class="modal-header">
@@ -70,37 +70,27 @@ const { path } = Astro.props;
 
       <section>
         <h3>📬 Multiple subscriptions</h3>
-        <p>You can subscribe to multiple paths with the same email. For example, you might want to:</p>
-        <ul>
-          <li>Subscribe to <code>/work</code> for professional content</li>
-          <li>Subscribe to <code>/health</code> for wellness updates</li>
-          <li>Subscribe to <code>/</code> for everything</li>
-        </ul>
+        <p>You can subscribe to multiple paths with the same email.</p>
       </section>
 
       <section>
         <h3>🔒 Privacy & storage</h3>
-        <p>Your email is stored in a Cloudflare D1 database. No third-party email services have access to your information. Your email is only used for sending update notifications.</p>
+        <p>Your email is stored in a Cloudflare D1 database. Only used for sending notifications.</p>
       </section>
 
       <section>
         <h3>📨 When will I receive emails?</h3>
-        <p>You'll receive an email notification when:</p>
-        <ul>
-          <li>New content is published in your subscribed path</li>
-          <li>Existing content is significantly updated</li>
-        </ul>
-        <p>I aim to keep notifications meaningful and avoid spam.</p>
-        <i>For now, I will personally send the notifications myself.</i>
+        <p>You'll receive an email when new content is published or significantly updated in your subscribed path.</p>
       </section>
 
       <section>
         <h3>🚫 Unsubscribing</h3>
-        <p>Currently there is no way to unsubscribe. If you no longer want to receive notifications, email me at <a href="mailto:miquel@miquelpuigturon.com">miquel@miquelpuigturon.com</a>.</p>
+        <p>Email me at <a href="mailto:miquel@miquelpuigturon.com">miquel@miquelpuigturon.com</a> if you no longer want notifications.</p>
       </section>
     </div>
   </div>
 </div>
+
 
 <style>
   .subscribe-container {
@@ -422,35 +412,29 @@ const { path } = Astro.props;
 </style>
 
 <script is:inline>
-  function initSubscribeForm() {
+  const initSubscribeForm = () => {
     const form = document.getElementById('subscribe-form');
     const emailInput = document.getElementById('email-input');
     const submitButton = document.getElementById('subscribe-button');
     const messageDiv = document.getElementById('subscribe-message');
-    
-    // Modal elements
+
     const modal = document.getElementById('subscribe-modal');
     const helpButton = document.getElementById('help-button');
     const modalClose = document.getElementById('modal-close');
     const modalOverlay = document.getElementById('modal-overlay');
 
-    if (!form || !emailInput || !submitButton || !messageDiv || !modal || !helpButton || !modalClose || !modalOverlay) {
-      return; // Elements not ready yet
-    }
+    if (!form || !emailInput || !submitButton || !messageDiv || !modal || !helpButton || !modalClose || !modalOverlay) return;
+
+    // Ensure modal is hidden initially
+    modal.classList.remove('show');
+    modal.setAttribute('aria-hidden', 'true');
 
     function showMessage(text, type) {
       messageDiv.textContent = text;
-      messageDiv.className = `message show ${type}`;
-      
-      // Auto-hide success messages after 5 seconds
-      if (type === 'success') {
-        setTimeout(() => {
-          messageDiv.classList.remove('show');
-        }, 5000);
-      }
+      messageDiv.className = `subscribe-message message show ${type}`;
+      if (type === 'success') setTimeout(() => messageDiv.classList.remove('show'), 5000);
     }
 
-    // Modal functions
     function openModal() {
       modal.classList.add('show');
       modal.setAttribute('aria-hidden', 'false');
@@ -463,94 +447,58 @@ const { path } = Astro.props;
       document.body.style.overflow = '';
     }
 
-    // Remove existing listeners to prevent duplicates
-    const newHelpButton = helpButton.cloneNode(true);
-    helpButton.parentNode.replaceChild(newHelpButton, helpButton);
-    const newModalClose = modalClose.cloneNode(true);
-    modalClose.parentNode.replaceChild(newModalClose, modalClose);
-    const newModalOverlay = modalOverlay.cloneNode(true);
-    modalOverlay.parentNode.replaceChild(newModalOverlay, modalOverlay);
-    const newForm = form.cloneNode(true);
-    form.parentNode.replaceChild(newForm, form);
+    helpButton.addEventListener('click', openModal);
+    modalClose.addEventListener('click', closeModal);
+    modalOverlay.addEventListener('click', closeModal);
 
-    // Re-get references after cloning
-    const finalForm = document.getElementById('subscribe-form');
-    const finalEmailInput = document.getElementById('email-input');
-    const finalSubmitButton = document.getElementById('subscribe-button');
-    const finalHelpButton = document.getElementById('help-button');
-    const finalModalClose = document.getElementById('modal-close');
-    const finalModalOverlay = document.getElementById('modal-overlay');
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && modal.classList.contains('show')) closeModal();
+    });
 
-    // Event listeners for modal
-    finalHelpButton.addEventListener('click', openModal);
-    finalModalClose.addEventListener('click', closeModal);
-    finalModalOverlay.addEventListener('click', closeModal);
-
-    // Close modal on escape key
-    const escapeHandler = (e) => {
-      if (e.key === 'Escape' && modal.classList.contains('show')) {
-        closeModal();
-      }
-    };
-    document.removeEventListener('keydown', escapeHandler);
-    document.addEventListener('keydown', escapeHandler);
-
-    // Subscribe form
-    finalForm.addEventListener('submit', async (e) => {
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      
-      const email = finalEmailInput.value.trim();
-      const path = finalForm.dataset.path;
+      const email = emailInput.value.trim();
+      const path = form.dataset.path;
 
       if (!email) {
         showMessage('Please enter your email address', 'error');
         return;
       }
 
-      // Disable form while submitting
-      finalEmailInput.disabled = true;
-      finalSubmitButton.disabled = true;
-      finalSubmitButton.textContent = 'Subscribing...';
+      emailInput.disabled = true;
+      submitButton.disabled = true;
+      submitButton.textContent = 'Subscribing...';
 
       try {
-        const response = await fetch('/api/subscribe', {
+        const res = await fetch('/api/subscribe', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ email, path }),
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, path })
         });
+        const data = await res.json();
 
-        const data = await response.json();
-
-        if (response.ok) {
-          showMessage(
-            data.message || 'Subscription successful!',
-            'success'
-          );
-          finalEmailInput.value = '';
+        if (res.ok) {
+          showMessage(data.message || 'Subscription successful!', 'success');
+          emailInput.value = '';
         } else {
           showMessage(data.error || 'Failed to subscribe. Please try again.', 'error');
         }
-      } catch (error) {
+      } catch {
         showMessage('An error occurred. Please try again later.', 'error');
       } finally {
-        // Re-enable form
-        finalEmailInput.disabled = false;
-        finalSubmitButton.disabled = false;
-        finalSubmitButton.textContent = 'Subscribe';
+        emailInput.disabled = false;
+        submitButton.disabled = false;
+        submitButton.textContent = 'Subscribe';
       }
     });
-  }
+  };
 
-  // Run on initial load
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initSubscribeForm);
   } else {
     initSubscribeForm();
   }
 
-  // Run on Astro page navigation
   document.addEventListener('astro:page-load', initSubscribeForm);
 </script>
 
