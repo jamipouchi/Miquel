@@ -1,0 +1,81 @@
+---
+import TreeNav from './TreeNav.astro';
+import SubscribeForm from './SubscribeForm.astro';
+
+interface Props {
+  currentSlug: string;
+  path: string;
+}
+
+const { currentSlug, path } = Astro.props;
+---
+
+<footer class="site-footer">
+  <div class="footer-content">
+    <div class="footer-section nav-section">
+      <TreeNav currentSlug={currentSlug} />
+    </div>
+
+    <div class="footer-section subscribe-section">
+      <SubscribeForm path={path} />
+    </div>
+  </div>
+</footer>
+
+<style>
+  .site-footer {
+    margin-top: 4rem;
+    padding-top: 3rem;
+    border-top: 2px solid #e0e0e0;
+  }
+
+  .footer-content {
+    display: grid;
+    gap: 3rem;
+    max-width: 100%;
+  }
+
+  .footer-section {
+    width: 100%;
+  }
+
+  .subscribe-section {
+    order: 2;
+  }
+
+  .nav-section {
+    order: 1;
+  }
+
+  /* Adjust subscribe form styling for footer context */
+  .subscribe-section :global(.subscribe-container) {
+    margin: 0;
+  }
+
+  .subscribe-section :global(.subscribe-form) {
+    max-width: 100%;
+  }
+
+  @media (min-width: 768px) {
+    .footer-content {
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      align-items: start;
+    }
+
+    .subscribe-section {
+      order: 2;
+    }
+
+    .nav-section {
+      order: 1;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .footer-content {
+      gap: 3rem;
+    }
+  }
+</style>
+

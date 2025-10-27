@@ -1,8 +1,14 @@
 {
-  "name": "miquel",
-  "compatibility_date": "2025-10-24",
-  "assets": {
-    "directory": "./dist"
-  }
+    "name": "miquel",
+    "compatibility_date": "2025-10-24",
+    "assets": {
+        "directory": "./dist"
+    },
+    "d1_databases": [
+        {
+            "binding": "personal_site",
+            "database_name": "personal-site",
+            "database_id": "166fc1fc-543c-4355-84af-d7461d19e300"
+        }
+    ]
 }
-

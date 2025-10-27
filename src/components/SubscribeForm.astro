@@ -1,0 +1,556 @@
+---
+interface Props {
+  path: string;
+}
+
+const { path } = Astro.props;
+---
+
+<div class="subscribe-container">
+  <div class="subscribe-header">
+    <h3>Subscribe to Updates</h3>
+    <button 
+      type="button" 
+      class="help-button" 
+      id="help-button"
+      aria-label="How subscriptions work"
+      title="How subscriptions work"
+    >
+      ?
+    </button>
+  </div>
+  
+  <p class="subscribe-description">
+    Get notified for updates in <strong>{path}</strong> or any subpaths.
+  </p>
+  
+  <form id="subscribe-form" data-path={path} method="post" action="javascript:void(0);">
+    <input 
+      type="email" 
+      id="email-input"
+      name="email" 
+      placeholder="your@email.com" 
+      required 
+      aria-label="Email address"
+    />
+    <button type="submit" id="subscribe-button">
+      Subscribe
+    </button>
+  </form>
+  
+  <div id="subscribe-message" class="message" role="alert" aria-live="polite"></div>
+</div>
+
+<!-- Modal -->
+<div id="subscribe-modal" class="modal" role="dialog" aria-labelledby="modal-title" aria-hidden="true">
+  <div class="modal-overlay" id="modal-overlay"></div>
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2 id="modal-title">How Subscriptions Work</h2>
+      <button type="button" class="modal-close" id="modal-close" aria-label="Close modal">&times;</button>
+    </div>
+    
+    <div class="modal-body">
+      <section>
+        <h3>📧 What happens when you subscribe?</h3>
+        <p>Your email is stored securely in a Cloudflare D1 database associated with the specific path you're subscribing to.</p>
+      </section>
+
+      <section>
+        <h3>🌳 Hierarchical subscriptions</h3>
+        <p>Subscriptions follow a path-based system. If you subscribe to <code>/work</code>, you'll be notified about:</p>
+        <ul>
+          <li>Changes to <code>/work</code> itself</li>
+          <li>Changes to <code>/work/temporal</code></li>
+          <li>Changes to <code>/work/temporal/scaling-workers</code></li>
+          <li>Any other pages under <code>/work</code></li>
+        </ul>
+        <p>But you won't be notified about changes to <code>/health</code> or <code>/social</code>.</p>
+      </section>
+
+      <section>
+        <h3>📬 Multiple subscriptions</h3>
+        <p>You can subscribe to multiple paths with the same email. For example, you might want to:</p>
+        <ul>
+          <li>Subscribe to <code>/work</code> for professional content</li>
+          <li>Subscribe to <code>/health</code> for wellness updates</li>
+          <li>Subscribe to <code>/</code> for everything</li>
+        </ul>
+      </section>
+
+      <section>
+        <h3>🔒 Privacy & storage</h3>
+        <p>Your email is stored in a Cloudflare D1 database. No third-party email services have access to your information. Your email is only used for sending update notifications.</p>
+      </section>
+
+      <section>
+        <h3>📨 When will I receive emails?</h3>
+        <p>You'll receive an email notification when:</p>
+        <ul>
+          <li>New content is published in your subscribed path</li>
+          <li>Existing content is significantly updated</li>
+        </ul>
+        <p>I aim to keep notifications meaningful and avoid spam.</p>
+        <i>For now, I will personally send the notifications myself.</i>
+      </section>
+
+      <section>
+        <h3>🚫 Unsubscribing</h3>
+        <p>Currently there is no way to unsubscribe. If you no longer want to receive notifications, email me at <a href="mailto:miquel@miquelpuigturon.com">miquel@miquelpuigturon.com</a>.</p>
+      </section>
+    </div>
+  </div>
+</div>
+
+<style>
+  .subscribe-container {
+    margin: 0;
+    padding: 0;
+  }
+
+  .subscribe-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .subscribe-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    color: #333;
+    font-weight: 600;
+  }
+
+  .help-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background-color: #0066cc;
+    color: white;
+    border: none;
+    font-size: 0.75rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.2s;
+    line-height: 1;
+    padding: 0;
+  }
+
+  .help-button:hover {
+    background-color: #0052a3;
+    transform: scale(1.1);
+  }
+
+  .subscribe-description {
+    margin: 0 0 1rem 0;
+    font-size: 0.85rem;
+    color: #666;
+    line-height: 1.4;
+  }
+
+  .subscribe-description strong {
+    color: #0066cc;
+    font-family: monospace;
+    font-size: 0.9em;
+  }
+
+  form {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: nowrap;
+    background: white;
+    border: 1px solid #d0d0d0;
+    border-radius: 6px;
+    padding: 4px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  form:focus-within {
+    border-color: #0066cc;
+    box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+  }
+
+  input[type="email"] {
+    flex: 1;
+    min-width: 0;
+    padding: 0.6rem 0.75rem;
+    border: none;
+    background: transparent;
+    font-size: 0.95rem;
+    color: #333;
+  }
+
+  input[type="email"]::placeholder {
+    color: #999;
+  }
+
+  input[type="email"]:focus {
+    outline: none;
+  }
+
+  input[type="email"]:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  #subscribe-button {
+    padding: 0.6rem 1.25rem;
+    background-color: #0066cc;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.1s;
+    white-space: nowrap;
+  }
+
+  #subscribe-button:hover:not(:disabled) {
+    background-color: #0052a3;
+  }
+
+  #subscribe-button:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+
+  #subscribe-button:disabled {
+    background-color: #6c757d;
+    cursor: not-allowed;
+  }
+
+  .message {
+    margin-top: 0.75rem;
+    padding: 0.65rem 0.85rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    display: none;
+    line-height: 1.4;
+  }
+
+  .message.show {
+    display: block;
+  }
+
+  .message.success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+  }
+
+  .message.error {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+  }
+
+  /* Modal Styles */
+  .modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1000;
+  }
+
+  .modal.show {
+    display: block;
+  }
+
+  .modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(2px);
+  }
+
+  .modal-content {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    max-width: 600px;
+    width: 90%;
+    max-height: 85vh;
+    overflow-y: auto;
+    animation: modalSlideIn 0.3s ease-out;
+  }
+
+  @keyframes modalSlideIn {
+    from {
+      opacity: 0;
+      transform: translate(-50%, -45%);
+    }
+    to {
+      opacity: 1;
+      transform: translate(-50%, -50%);
+    }
+  }
+
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid #e0e0e0;
+    position: sticky;
+    top: 0;
+    background: white;
+    border-radius: 12px 12px 0 0;
+  }
+
+  .modal-header h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    color: #333;
+  }
+
+  .modal-close {
+    background: none;
+    border: none;
+    font-size: 2rem;
+    line-height: 1;
+    color: #666;
+    cursor: pointer;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: background-color 0.2s, color 0.2s;
+  }
+
+  .modal-close:hover {
+    background-color: #f0f0f0;
+    color: #333;
+  }
+
+  .modal-body {
+    padding: 2rem;
+  }
+
+  .modal-body section {
+    margin-bottom: 2rem;
+  }
+
+  .modal-body section:last-child {
+    margin-bottom: 0;
+  }
+
+  .modal-body h3 {
+    margin: 0 0 0.75rem 0;
+    font-size: 1.1rem;
+    color: #333;
+  }
+
+  .modal-body p {
+    margin: 0 0 0.75rem 0;
+    line-height: 1.6;
+    color: #555;
+  }
+
+  .modal-body p:last-child {
+    margin-bottom: 0;
+  }
+
+  .modal-body code {
+    background-color: #f5f5f5;
+    padding: 0.2em 0.4em;
+    border-radius: 3px;
+    font-family: monospace;
+    font-size: 0.9em;
+    color: #0066cc;
+  }
+
+  .modal-body ul {
+    margin: 0.5rem 0;
+    padding-left: 1.5rem;
+  }
+
+  .modal-body li {
+    margin: 0.5rem 0;
+    line-height: 1.6;
+    color: #555;
+  }
+
+  @media (max-width: 640px) {
+    form {
+      flex-direction: column;
+      padding: 6px;
+    }
+
+    input[type="email"] {
+      padding: 0.75rem;
+    }
+
+    #subscribe-button {
+      width: 100%;
+      padding: 0.75rem 1.25rem;
+    }
+
+    .modal-content {
+      width: 95%;
+      max-height: 90vh;
+    }
+
+    .modal-header {
+      padding: 1.25rem 1.5rem;
+    }
+
+    .modal-header h2 {
+      font-size: 1.25rem;
+    }
+
+    .modal-body {
+      padding: 1.5rem;
+    }
+  }
+</style>
+
+<script is:inline>
+  function initSubscribeForm() {
+    const form = document.getElementById('subscribe-form');
+    const emailInput = document.getElementById('email-input');
+    const submitButton = document.getElementById('subscribe-button');
+    const messageDiv = document.getElementById('subscribe-message');
+    
+    // Modal elements
+    const modal = document.getElementById('subscribe-modal');
+    const helpButton = document.getElementById('help-button');
+    const modalClose = document.getElementById('modal-close');
+    const modalOverlay = document.getElementById('modal-overlay');
+
+    if (!form || !emailInput || !submitButton || !messageDiv || !modal || !helpButton || !modalClose || !modalOverlay) {
+      return; // Elements not ready yet
+    }
+
+    function showMessage(text, type) {
+      messageDiv.textContent = text;
+      messageDiv.className = `message show ${type}`;
+      
+      // Auto-hide success messages after 5 seconds
+      if (type === 'success') {
+        setTimeout(() => {
+          messageDiv.classList.remove('show');
+        }, 5000);
+      }
+    }
+
+    // Modal functions
+    function openModal() {
+      modal.classList.add('show');
+      modal.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeModal() {
+      modal.classList.remove('show');
+      modal.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+    }
+
+    // Remove existing listeners to prevent duplicates
+    const newHelpButton = helpButton.cloneNode(true);
+    helpButton.parentNode.replaceChild(newHelpButton, helpButton);
+    const newModalClose = modalClose.cloneNode(true);
+    modalClose.parentNode.replaceChild(newModalClose, modalClose);
+    const newModalOverlay = modalOverlay.cloneNode(true);
+    modalOverlay.parentNode.replaceChild(newModalOverlay, modalOverlay);
+    const newForm = form.cloneNode(true);
+    form.parentNode.replaceChild(newForm, form);
+
+    // Re-get references after cloning
+    const finalForm = document.getElementById('subscribe-form');
+    const finalEmailInput = document.getElementById('email-input');
+    const finalSubmitButton = document.getElementById('subscribe-button');
+    const finalHelpButton = document.getElementById('help-button');
+    const finalModalClose = document.getElementById('modal-close');
+    const finalModalOverlay = document.getElementById('modal-overlay');
+
+    // Event listeners for modal
+    finalHelpButton.addEventListener('click', openModal);
+    finalModalClose.addEventListener('click', closeModal);
+    finalModalOverlay.addEventListener('click', closeModal);
+
+    // Close modal on escape key
+    const escapeHandler = (e) => {
+      if (e.key === 'Escape' && modal.classList.contains('show')) {
+        closeModal();
+      }
+    };
+    document.removeEventListener('keydown', escapeHandler);
+    document.addEventListener('keydown', escapeHandler);
+
+    // Subscribe form
+    finalForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const email = finalEmailInput.value.trim();
+      const path = finalForm.dataset.path;
+
+      if (!email) {
+        showMessage('Please enter your email address', 'error');
+        return;
+      }
+
+      // Disable form while submitting
+      finalEmailInput.disabled = true;
+      finalSubmitButton.disabled = true;
+      finalSubmitButton.textContent = 'Subscribing...';
+
+      try {
+        const response = await fetch('/api/subscribe', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email, path }),
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          showMessage(
+            data.message || 'Subscription successful!',
+            'success'
+          );
+          finalEmailInput.value = '';
+        } else {
+          showMessage(data.error || 'Failed to subscribe. Please try again.', 'error');
+        }
+      } catch (error) {
+        showMessage('An error occurred. Please try again later.', 'error');
+      } finally {
+        // Re-enable form
+        finalEmailInput.disabled = false;
+        finalSubmitButton.disabled = false;
+        finalSubmitButton.textContent = 'Subscribe';
+      }
+    });
+  }
+
+  // Run on initial load
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initSubscribeForm);
+  } else {
+    initSubscribeForm();
+  }
+
+  // Run on Astro page navigation
+  document.addEventListener('astro:page-load', initSubscribeForm);
+</script>
+

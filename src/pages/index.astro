@@ -1,7 +1,7 @@
 ---
 import '../styles/global.css';
 import CommonHead from '../components/CommonHead.astro';
-import TreeNav from '../components/TreeNav.astro';
+import Footer from '../components/Footer.astro';
 
 import Content from '../content/pages/index.md';
 ---
@@ -13,7 +13,7 @@ import Content from '../content/pages/index.md';
   <body>
     <article class="prose home">
       <Content />
-      <TreeNav currentSlug="index" />
+      <Footer currentSlug="index" path="/" />
     </article>
 
     <style>
