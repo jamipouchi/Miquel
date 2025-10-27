@@ -2,9 +2,9 @@ import Tooltip from '../../../../../components/Tooltip.astro'
 
 # Worker configuration (_Node_)
 
-This is a walkthrough of my experience running workers on Node for [Genesy](https://genesy.ai/).
+This is a walkthrough of my experience configuring workers running on Node for [Genesy](https://genesy.ai/).
 
-It focuses on worker configuration, as I found the current (as of Oct 2025) defaults and documentation to be misguiding, and want to share my findings, as this is [not only a me-issue](https://temporalio.slack.com/archives/CTRCR8RBP/p1761316809891479).
+It focuses on worker configuration, as I found the current (as of Oct 2025) defaults to be misguiding, and want to share my findings, as this is [not only a me-issue](https://temporalio.slack.com/archives/CTRCR8RBP/p1761316809891479).
 
 Readers should understand workers and worker/server interaction before reading this article. ([a good resource](https://temporal.io/blog/building-reliable-distributed-systems-in-node-js-part-2))
 
@@ -34,14 +34,14 @@ _6th of march_, Temporal [announced](https://github.com/temporalio/temporal/issu
 
 It took 3 months of [me complaining](https://temporalio.slack.com/archives/C08GSTH8WEM/p1758618625126139) that it wasn't working, until priority was an actual useful feature.
 
-I thought that priority would solve this problem. Simply prioritize manager workflows over conversation workflows. \
+I thought that priority would solve this problem. Simply prioritize manager workflows over conversation workflows.
 Then we only need to make sure that we can handle _hundreds_ of workflows immediately instead of _hundreds of thousands_.
 
 </details>
 
 ## Discovering the problem
 
-I started experimenting with how to make sure `priorityKey=1` workflows are always responsive no matter how many higher priority workflows needed processing. An easy way to do it was to limit the number of instances of the service, and thus of workers.
+I started experimenting with how to make sure `priorityKey=1` workflows are always responsive no matter how many higher priority workflows needed processing. An easy way to stress test it was to limit the number of instances of the service, and thus of workers.
 
 Previously, up to 50 instances were running at a time, as our best guess on making `priorityKey=1` workflows responsive was to process everything instantly. \
 I cut down to 10 instances, and at peak times, workers were <Tooltip text="By saturated I mean that for the task queue, the backlog increases: tasksAddRate > tasksDispatchRate">saturated</Tooltip>.
@@ -85,7 +85,7 @@ out—meaning the worker did not respond within the default 10-second timeout wi
 ```
 
 The worker was taking more than 10 seconds (default start-to-close timeout) to complete the task. \
-That was a surprise, as workflow tasks are lightweight, and should take tens to hundreds of milliseconds at most.
+This was a surprise, as workflow tasks are lightweight, and should take _tens of milliseconds_ at most.
 
 ## Understanding worker configuration
 
@@ -107,10 +107,32 @@ There are two ways to configure this: \
 The original way, using maxConcurrent<Tooltip text="workflow/activity/local-activity/nexus task">\<taskType></Tooltip>Executions and maxConcurrent<Tooltip text="workflow/activity/local-activity/nexus task">\<taskType></Tooltip>Polls. \
 The new way, using the `tuner`, which grants slots until a targetCpu and targetMemory are reached.
 
-There's also the `nonStickyToStickyPollRatio`, which is a very useful optimization along with `maxCachedWorkflows`, to avoid having to replay workflows. This should be set according to your workload patterns. \
-The docs on it are good, so I won't go deeper into it here.
+_We will focus on workflow and activity tasks, which are the majority of tasks that are executed._
 
-_We will focus on workflow and activity tasks, which are likely almost all the tasks that are executed._
+### Threading model
+
+The threading model is explained [here](https://typescript.temporal.io/api/interfaces/worker.WorkerOptions#threading-model). \
+Basically, interactions with the Core SDK happen on the main thread (Node's event loop). There's also at least one worker thread, which the main thread delegates workflow tasks to. This is a great idea, as workflow tasks are CPU bound (they run until the next await).
+
+The number of worker threads is configured with the `workflowThreadPoolSize` option. It defaults to 1 if `reuseV8Context` is true, which it most likely should be, or 2 otherwise.
+
+Workflow tasks tend to be lightweight, so the defaults should be fine.
+
+### Sticky tasks and worker cache
+
+There's also the `nonStickyToStickyPollRatio`, which indicates the ratio of pollers that will poll from the sticky task queue. \
+Along with `maxCachedWorkflows`, it is a very useful optimization to avoid having to replay workflows.
+
+The values should be set according to your workload patterns. \
+The docs on it are good, so no need to go deeper here.
+
+## What can we do to fix the problem?
+
+### Task execution and polling
+
+By far the most relevant configuration is related to task execution and polling.
+
+Looking at metrics for number of <Tooltip text="slots are tasks being executed concurrently">slots</Tooltip>, we can see that the number of workflow slots is directly related to the number of tasks failing, and through the previous relationship, the number of workflow tasks timing out.
 
 <figure style="margin: 2rem 0;">
     <img
@@ -123,19 +145,22 @@ _We will focus on workflow and activity tasks, which are likely almost all the t
     </figcaption>
 </figure>
 
-Looking at metrics for number of <Tooltip text="slots are tasks being executed concurrently">slots</Tooltip>, we can see that the number of workflow slots is directly related to the number of tasks failing, and through the previous relationship, the number of workflow tasks timing out.
+This image is obtained using the `tuner`, targeting 0.8 CPU and 0.6 memory usage, with a workflow task <Tooltip text="time before handling new slots">rampThrottle</Tooltip> of 100ms. Without the rampThrottle, we would get a lot of "out of memory" errors, as the worker would fill its memory trying to execute too many tasks at once.
 
-### Are tasks really executed concurrently?
+It's obvious from the image that the tuner is granting too many slots, and that this for some reason, is causing tasks to fail.
 
-The previous quote from the docs suggests that workflow tasks are executed concurrently. This is a lie. \
-It also suggests that performance is mostly network bound. For workflow tasks, this also is a lie.
+The worker takes more than the start-to-close timeout to complete the tasks, so when responding to the Temporal server with a result, the task is no longer found, and the result is discarded. This is very bad, as that same task is reissued, and the process repeats, burning CPU cycles for no reason.
 
-Workflow tasks cause the worker to replay the workflow history (unless they are cached) and then execute the code until the next await, where started activities/timers etc. are sent to the Temporal server. \
-Thus, they are completely CPU bound, and the event loop is blocked from when the workflow task starts until it completes.
+<div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 1rem 1.5rem; margin: 2rem 0; border-radius: 4px;">
+    <strong>Key Insight:</strong> Workflow tasks take so long to complete, not because they are expensive
+    (they take ~10ms), but because there are many slots, which implies there are many pollers and workflow
+    task completions that need to be sent to the Temporal server, which fills the event loop, blocking the
+    main thread which delays the response to the Temporal server.
+</div>
 
-`maxConcurrentWorkflowTaskExecutions` is the worst name this could have. For a parallel runtime, such as Go, it could be called `maxParallelWorkflowTaskExecutions`, but for Node and the event loop, it should be called `maxWorkflowTaskBacklogSize`, as it is the number of workflow tasks that the worker has picked up via the pollers, and are waiting to be executed, one by one.
+### Threading model
 
-We were using the `tuner`, targeting 0.8 CPU and 0.6 memory usage, with a workflow task <Tooltip text="time before handling new slots">rampThrottle</Tooltip> of 100ms. Without the rampThrottle, we would get a lot of "out of memory" errors, as the worker would try to execute too many tasks at once.
+The tuner grants way too many workflow slots no matter what `targetCPU` is specified. To understand why, we need to look at the threading model.
 
 <figure style="margin: 2rem 0;">
     <img
@@ -144,16 +169,49 @@ We were using the `tuner`, targeting 0.8 CPU and 0.6 memory usage, with a workfl
         style="max-width: 100%;"
     />
     <figcaption style="text-align: center; font-style: italic; margin-top: 0.5rem; color: #666;">
-        50+ slots CPU usage
+        CPU usage for `targetCPU=0.5` (50+ slots)
     </figcaption>
 </figure>
 
-The tuner worked for memory, but it was completely useless for CPU. Due to Node's single-threaded event loop, CPU usage on a single instance is not a useful metric for tuning. Either the event loop is filled and it's using 100% CPU, or it's not and it uses much less CPU.
+This is running on ECS Fargate, on single vCPU instances.
 
-The tuner grants way too many workflow slots (50+ for both our services), and the backlog of tasks gets so big, that when the worker processes them, they have already timed out. \
-So what's happening is that the worker is burning CPU cycles processing tasks for which the result is thrown away.
+I tested running 2 vCPU instances, with the default configuration, and the tuner was _more_ useful, but still granted too many slots.
 
-This can be clearly seen in the Workflow Task failures and slots metrics, where reducing the number of slots directly reduces the number of tasks failing:
+<figure style="margin: 2rem 0;">
+    <img
+        src="/work/temporal/worker-configuration/tuner-2vcpu.png"
+        alt="2 vCPUs slots and task failures"
+        style="max-width: 100%;"
+    />
+    <figcaption style="text-align: center; font-style: italic; margin-top: 0.5rem; color: #666;">
+        2 vCPUs slots and task failures
+    </figcaption>
+</figure>
+
+When configuring a fixed sized workflow task slot supplier, with 2 vCPUs, I could get up to twice the number of slots as with 1 vCPU, but I was unable to reach more than 75% CPU usage, which makes sense, as performance is bound by the main thread, which is mostly I/O bound. \
+Performance with 2 vCPUs is more stable, as variations in workflow task cost and having to replay or not happen in the worker thread, which is not at 100%.
+
+<figure style="margin: 2rem 0;">
+    <img
+        src="/work/temporal/worker-configuration/2vCPU-CPU.png"
+        alt="2 vCPUs CPU usage"
+        style="max-width: 100%;"
+    />
+    <figcaption style="text-align: center; font-style: italic; margin-top: 0.5rem; color: #666;">
+        2 vCPUs CPU usage
+    </figcaption>
+</figure>
+
+<div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 1rem 1.5rem; margin: 2rem 0; border-radius: 4px;">
+    <strong>Key Insight:</strong> Using resource-based tuner (the default) for workflow tasks with 1 vCPU
+    makes `targetCPU` useless. With 2 vCPUs, it's still not good enough.
+</div>
+
+## Conclusions
+
+I do not recommend using the tuner with default options, it causes too many workflow task slots, which makes them time out and be retried, burning CPU cycles for no reason.
+
+The most important thing is to use a fixed sized workflow task slot supplier, with a size that is a good fit for your workload.
 
 <figure style="margin: 2rem 0;">
     <img
@@ -166,16 +224,16 @@ This can be clearly seen in the Workflow Task failures and slots metrics, where 
     </figcaption>
 </figure>
 
-If no configuration is used (no tuner, no maxConcurrentWorkflowTaskExecutions), the worker will use the default configuration, which is 40 workflow slots. (still way too many)
+If no configuration is used (no tuner, no maxConcurrentWorkflowTaskExecutions), the worker will use the default configuration, which is 40 workflow slots (likely still way too many).
 
-### Is the default worker configuration that bad?
+## Why is the default worker configuration so bad?
 
-Well... It's not that bad. For activity tasks, it works well, as they are actually executed concurrently, and are network bound (requests to db, external services, etc.). \
-For parallel programming languages (like go and java, which are likely Temporal's target languages), it also makes sense (though I would limit the number of workflow tasks anyway).
+Well, It's not that bad... \
+For parallel programming languages (like go and java, which are likely Temporal's target languages), it makes sense, as we want to reduce the percentage of I/O work, and there's no event loop or main thread that limits performance.
 
-It just doesn't make sense for a single-threaded runtime like node.
+It just is bad for the typescript sdk (I think the python sdk is similar), which only executes workflows on the worker thread, and the main thread is the limiting factor. It is even worse for 1 vCPU instances, which is how Node workers are usually deployed.
 
-## Current worker configuration
+## Our Current worker configuration
 
 We now use the following configuration:
 
@@ -185,7 +243,7 @@ const config = {
     tuner = {
         workflowTaskSlotSupplier: {
             type: 'fixed-size',
-            numSlots: X (6 for conversation, 12 for enrich),
+            numSlots: X (5 for conversation, 10 for enrich),
         },
         activityTaskSlotSupplier: {
             type: 'resource-based',
@@ -197,12 +255,15 @@ const config = {
         },
         // local and nexus tasks don't really matter
     },
-    nonStickyToStickyPollRatio: Y (0.4 for conversation, 0.5 for enrich),
-    maxCachedWorkflows: Z (100 for conversation, 300 for enrich),
+    nonStickyToStickyPollRatio: Y (2/5 for conversation, 0.5 for enrich),
+    maxCachedWorkflows: Z (150 for conversation, 300 for enrich),
 }
 ```
 
 The difference between conversation and enrich is that conversation workflow tasks are slower, due to replay, and more of the conversation workflows end up not being sticky.
+
+Values for activity tasks are not very relevant, as our workflows don't fan out into many activities, and eager dispatch is enabled. \
+Activities are mostly processed instantly, and are very cheap, though they do sit in the event loop, adding a bit of latency to the main thread.
 
 <figure style="margin: 2rem 0;">
     <img
@@ -225,13 +286,12 @@ With this configuration, 100% of users sending messages succeed.
 
 ### Why not just 1 slot?
 
-Even though the quoted docs are misleading for Node.js, it's still useful to have multiple slots. We want to ensure that when we free a slot (complete a workflow task), we can immediately start a new one. \
-I'll monitor performance, but it's possible that I'll reduce the slots to 4.
+Even though the default is not good, the docs are correct in that worker performance is mostly network bound so it's still useful to have multiple slots. We want to ensure that the worker thread is never idle due to having no work to do.
 
 ## Running workers in production
 
-This article is related to worker configuration, but to run workers in production, infrastructure also needs to be considered.
+This article is related to worker configuration, but to run workers in production, infrastructure and scaling strategies also need to be considered.
 
-Workers should run on fixed-size instances and scale horizontally. (We use ECS Fargate)
+Workers should run on fixed-size instances and scale horizontally. (We use ECS Fargate, and run 1-50 (usually under 10) instances per service, larger teams probably use Kubernetes)
 
-Scaling should be done on average across worker instances CPU usage, and either task backlog count or backlog age. (We send task queue metrics to CloudWatch)
+Scaling should be done on average CPU usage across worker instances, and either task backlog count or backlog age. (We send task queue metrics to CloudWatch)
