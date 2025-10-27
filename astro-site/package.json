@@ -11,9 +11,10 @@
     "astro": "astro"
   },
   "dependencies": {
-    "@astrojs/cloudflare": "^12.6.10",
+    "@astrojs/check": "^0.9.5",
     "@astrojs/mdx": "^4.3.8",
-    "astro": "^5.15.1"
+    "astro": "^5.15.1",
+    "typescript": "^5.9.3"
   },
   "devDependencies": {
     "wrangler": "^4.45.0"
