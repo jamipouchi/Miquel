@@ -1,0 +1,276 @@
+import Tooltip from '../../../../../../components/Tooltip.astro'
+
+# Worker configuration (_Node_) > Deep dive
+
+This article is a deep dive into the worker configuration and the many experiments I have run to understand it. \
+It's intended for those who want to understand the internals of Worker configuration. If you're looking for a simpler setup or just want to know _why_ I ran these tests, start with the [main article](/work/temporal/worker-configuration).
+
+This is not a definitive guide. Some parts remain unclear, but it documents what I've learned so far and where the documentation or defaults can be misleading.
+
+<div style="display: flex; gap: 2rem; margin: 1rem 0;">
+    <div style="flex: 1;">
+        <strong>It focuses on:</strong>
+        <ul>
+            <li>The tuner</li>
+            <li>Poller configuration</li>
+            <li>Worker thread configuration</li>
+        </ul>
+    </div>
+    <div style="flex: 1;">
+        <strong>It does NOT focus on:</strong>
+        <ul>
+            <li>optimizing workflow/activity code</li>
+            <li>keeping history short</li>
+            <li>caching workflows / sticky vs non-sticky pollers</li>
+        </ul>
+    </div>
+</div>
+
+## The tuner
+
+The _resource-based_ tuner aims to make Workers require almost no configuration. You specify a target CPU and memory usage, and the tuner will grant slots of each <Tooltip text="workflow/activity/local-activity/nexus">task type</Tooltip> until the target CPU and memory usage are reached.
+
+In practice, I haven't been able to make it behave as expected. Here's what I found.
+
+### Under-reports CPU and memory usage
+
+<figure style="margin: 2rem 0;">
+    <img
+        src="/work/temporal/worker-configuration/deep-dive/1vCPU-tuner-cpu-memory.png"
+        alt="Tuner CPU and memory usage"
+        style="max-width: 100%;"
+    />
+    <img
+        src="/work/temporal/worker-configuration/deep-dive/1vCPU-cloudwatch-cpu-memory.png"
+        alt="CloudWatch CPU and memory usage"
+        style="max-width: 100%;"
+    />
+    <figcaption style="text-align: center; font-style: italic; margin-top: 0.5rem; color: #666;">
+        Tuner vs CloudWatch CPU and memory usage for 1 vCPU instance
+    </figcaption>
+</figure>
+
+<figure style="margin: 2rem 0;">
+    <img
+        src="/work/temporal/worker-configuration/deep-dive/2vCPU-tuner-cpu-memory.png"
+        alt="Tuner CPU and memory usage"
+        style="max-width: 100%;"
+    />
+    <img
+        src="/work/temporal/worker-configuration/deep-dive/2vCPU-cloudwatch-cpu-memory.png"
+        alt="CloudWatch CPU and memory usage"
+        style="max-width: 100%;"
+    />
+    <figcaption style="text-align: center; font-style: italic; margin-top: 0.5rem; color: #666;">
+        Tuner vs CloudWatch CPU and memory usage for 2 vCPU instances
+    </figcaption>
+</figure>
+
+For both 1 and 2 vCPU instances, the tuner under-reports CPU and memory usage. \
+**Hypothesis**: it fails to read cgroup stats, and is reading the Node process stats instead. \
+It then also under-reports those, by giving a reading of around half of Node's.
+
+<figure style="margin: 2rem 0;">
+    <img
+        src="/work/temporal/worker-configuration/deep-dive/tuner-cpu-matches-node-cpu.png"
+        alt="Tuner CPU vs Node CPU"
+        style="max-width: 100%;"
+    />
+    <figcaption style="text-align: center; font-style: italic; margin-top: 0.5rem; color: #666;">
+        Tuner CPU vs Node CPU
+    </figcaption>
+</figure>
+
+**Alternate hypothesis**: the tuner might be ignoring main-thread CPU usage.
+
+<figure style="margin: 2rem 0;">
+    <img
+        src="/work/temporal/worker-configuration/deep-dive/tuner-vs-nodecpu-elu.png"
+        alt="Tuner CPU vs Node CPU - ELU"
+        style="max-width: 100%;"
+    />
+    <figcaption style="text-align: center; font-style: italic; margin-top: 0.5rem; color: #666;">
+        Tuner CPU vs Node CPU - ELU
+    </figcaption>
+</figure>
+
+_ELU_ ([event loop utilization](https://nodesource.com/blog/event-loop-utilization-nodejs)) measures how much time the main Node thread spends in the event loop. It's a strong proxy for main-thread CPU usage.
+
+### Slot grants ignore task type cost
+
+The issue ties to the [Worker threading model](/work/temporal/worker-configuration#threading-model).
+
+It's NOT relevant in single-vCPU instances (where the main and worker threads share the same core) but becomes noticeable in multi-core setups.
+
+It depends on how expensive workflow vs activity tasks are, (Considering `rampThrottle` and `minSlots` configuration) you can see three possible behaviors:
+
+#### a) Activity tasks are 'more expensive' than workflow tasks
+
+In this scenario, a backlog of activity tasks would accumulate.
+The main thread is constantly scheduled on a core, yet the CPU usage would not reach high values as the worker thread is idle. \
+This causes the tuner to keep granting more activity task slots, which worsens the situation.
+
+<div style="margin: 2rem 0; padding: 2rem; background: #fafafa; border-radius: 8px; position: relative;">
+    <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 1rem; align-items: center;">
+        <div style="border: 2px solid #333; padding: 1rem; border-radius: 4px; text-align: center; background: white;">
+            Burst of tasks
+        </div>
+        <div style="font-size: 1.5rem;">→</div>
+        <div style="border: 2px solid #333; padding: 1rem; border-radius: 4px; text-align: center; background: white;">
+            Backlog accumulates
+        </div>
+    </div>
+    <div style="text-align: right; font-size: 1.5rem; padding: 0.5rem 0;">↓</div>
+    <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 1rem; align-items: center;">
+        <div style="border: 2px solid #d62828; padding: 1rem; border-radius: 4px; text-align: center; background: white;">
+            Tuner grants more slots
+        </div>
+        <div style="font-size: 1.5rem;">←</div>
+        <div style="border: 2px solid #333; padding: 1rem; border-radius: 4px; text-align: center; background: white;">
+            CPU below target
+            <br />
+            <small>(worker thread idle)</small>
+        </div>
+    </div>
+    <div style="display: grid; grid-template-columns: auto 1fr; gap: 1rem; align-items: center;">
+        <div style="text-align: left; font-size: 1.5rem; padding: 0.5rem 0;">↓</div>
+        <div style="text-align: right; font-size: 1.5rem; padding: 0.5rem 0; color: #d62828;">↑</div>
+    </div>
+    <div style="border: 2px dashed #d62828; padding: 1rem; border-radius: 4px; text-align: center; background: #ffe5e5;">
+        <strong>Main thread saturated</strong>
+    </div>
+</div>
+
+#### b) Workflow tasks are 'more expensive' than activity tasks
+
+This is a similar scenario to the previous one, but in reverse, a backlog of workflow tasks would accumulate.
+
+It can be solved by increasing the `workflowThreadPoolSize` to match the number of cores, as if all worker threads are busy, CPU will reach the target, even if the main thread is idle.
+
+<figure style="margin: 2rem 0;">
+    <img
+        src="/work/temporal/worker-configuration/deep-dive/fixed-18-24-1-to-2-thread-worker-stats.png"
+        alt="Worker stats"
+        style="max-width: 100%; margin-bottom: 1rem;"
+    />
+    <img
+        src="/work/temporal/worker-configuration/deep-dive/fixed-18-24-1-to-2-thread-tuner-stats.png"
+        alt="Tuner stats"
+        style="max-width: 100%; margin-bottom: 1rem;"
+    />
+    <img
+        src="/work/temporal/worker-configuration/deep-dive/fixed-18-24-1-to-2-thread-node-stats.png"
+        alt="Node stats"
+        style="max-width: 100%; margin-bottom: 1rem;"
+    />
+    <img
+        src="/work/temporal/worker-configuration/deep-dive/fixed-18-24-1-to-2-thrad-cloudwatch-stats.png"
+        alt="CloudWatch stats"
+        style="max-width: 100%;"
+    />
+    <figcaption style="text-align: center; font-style: italic; margin-top: 0.5rem; color: #666;">
+        Stats comparison when increasing worker threads from 1 to 2
+    </figcaption>
+</figure>
+
+These images show the stats when running a workload saturated due to workflow tasks on fixed-sized tuner, going from 1 worker thread and 12 slots to 2 worker threads and 18 slots for workflow tasks and 24 slots for activity tasks.
+
+In the graphs, CPU plateaus near 80% with one worker thread (≈ main thread at 100% + worker thread at 50%) / 2. \
+Adding another thread (and more workflow slots) pushes CPU to 100%, confirming full utilization.
+
+#### c) Both are equally 'expensive'
+
+Even though this scenario is unrealistic, in this case the tuner performs well, slot distribution is balanced and increases until the target is reached.
+
+### Not granting slots? Pollers?
+
+Given my workload is workflow-heavy, I tried setting a fixed size for workflow slots (to make sure not too many are picked and time out), and let the tuner manage activity tasks.
+
+For some reason, activity task slots used were low.
+
+An explanation could be not enough pollers. So I also tested:
+
+- Increasing pollers from 10 → 25 → 40
+- Switching from fixed-size to `PollerBehaviorAutoscaling`
+
+<figure style="margin: 2rem 0;">
+    <img
+        src="/work/temporal/worker-configuration/deep-dive/activity-tuner-2cpu-8wftasks.png"
+        alt="Activity tuner with 8 workflow tasks"
+        style="max-width: 100%;"
+    />
+    <figcaption style="text-align: center; font-style: italic; margin-top: 0.5rem; color: #666;">
+        Activity tuner with 8 workflow tasks
+    </figcaption>
+</figure>
+
+<figure style="margin: 2rem 0;">
+    <img
+        src="/work/temporal/worker-configuration/deep-dive/activity-tuner-2cpu-12wftasks.png"
+        alt="Activity tuner with 12 workflow tasks"
+        style="max-width: 100%;"
+    />
+    <figcaption style="text-align: center; font-style: italic; margin-top: 0.5rem; color: #666;">
+        Activity tuner with 12 workflow tasks
+    </figcaption>
+</figure>
+
+<figure style="margin: 2rem 0;">
+    <img
+        src="/work/temporal/worker-configuration/deep-dive/activity-tuner-2cpu-6wftasks-40pollers.png"
+        alt="Activity tuner with 6 workflow tasks and 40 pollers"
+        style="max-width: 100%;"
+    />
+    <figcaption style="text-align: center; font-style: italic; margin-top: 0.5rem; color: #666;">
+        Activity tuner with 6 workflow tasks and 40 pollers
+    </figcaption>
+</figure>
+
+None of these changed the number of activity task slots in use.
+
+When using a fixed-size number of activity task slots, more task slots were in use, meaning the tuner likely failed to grant slots.
+
+<figure style="margin: 2rem 0;">
+    <img
+        src="/work/temporal/worker-configuration/deep-dive/fixed-2cpu-8wf-24act.png"
+        alt="Fixed-size configuration with 2 CPU, 8 workflow tasks, and 24 activity tasks"
+        style="max-width: 100%;"
+    />
+    <figcaption style="text-align: center; font-style: italic; margin-top: 0.5rem; color: #666;">
+        Fixed-size configuration: 8 workflow tasks, 24 activity tasks
+    </figcaption>
+</figure>
+
+# Conclusion
+
+If the tuner measured resources correctly, it would work fine on 1 vCPU instances.
+
+On 2 vCPU instances, it could be useful for workflow-heavy workloads, assuming a fixed-size workflow task slot supplier and as many Worker threads as cores.
+
+I haven't succeeded in using it reliably, but I've learned about the tuner, pollers, the threading model and how Node interacts with all of these.
+
+My current configuration (might go back to 1vCPU with a fixed-size workflow task slot supplier, which is simpler):
+
+- **2 vCPUs**
+- **2 worker threads**
+- **14 slots for workflow tasks**
+- **24 slots for activity tasks**
+
+Since we don't fan out into many activities, activity slot count doesn't matter much as long as there are enough slots. (24 or 24,000 would work just as well)
+
+# Appendix
+
+If you can shed light on any of the unexplained behavior, please reach out at [miquel@miquelpuigturon.com](mailto:miquel@miquelpuigturon.com) or on Temporal Slack (`Miquel)`.
+
+I have more graphs and data available for anyone interested.
+
+<figure style="margin: 2rem 0;">
+    <img
+        src="/work/temporal/worker-configuration/deep-dive/folders.png"
+        alt="Folder structure with additional data and images"
+        style="max-width: 100%;"
+    />
+    <figcaption style="text-align: center; font-style: italic; margin-top: 0.5rem; color: #666;">
+        Additional data and images from experiments
+    </figcaption>
+</figure>

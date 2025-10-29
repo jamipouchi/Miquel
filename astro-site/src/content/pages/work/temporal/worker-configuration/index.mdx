@@ -15,8 +15,8 @@ _Fun fact_: This article is the reason this site exists.
 
 We run two <Tooltip text="Each service simply runs a worker">services </Tooltip>
 
--   **Enrich**: User actions are not processed in the API directly, they are off-loaded to this service, which makes sure that they are processed reliably. I wrote my [CS bachelor's thesis](https://upcommons.upc.edu/entities/publication/d8662ade-c751-4257-bc1f-fb2f8245199d) on why we decided on this, and how I coded the primitives that allow it to work well.
--   **Conversation**: Genesy offers [automated campaigns](https://www.genesy.ai/#:~:text=Conditional%20Campaigns), which are likely the most advanced conditional campaign system that exist on any tool. Each campaign has an identity which targets contacts, with which a conversation is started. Each conversation runs as an entity workflow, and identity actions are centralized in a manager workflow.
+- **Enrich**: User actions are not processed in the API directly, they are off-loaded to this service, which makes sure that they are processed reliably. I wrote my [CS bachelor's thesis](https://upcommons.upc.edu/entities/publication/d8662ade-c751-4257-bc1f-fb2f8245199d) on why we decided on this, and how I coded the primitives that allow it to work well.
+- **Conversation**: Genesy offers [automated campaigns](https://www.genesy.ai/#:~:text=Conditional%20Campaigns), which are likely the most advanced conditional campaign system that exist on any tool. Each campaign has an identity which targets contacts, with which a conversation is started. Each conversation runs as an entity workflow, and identity actions are centralized in a manager workflow.
 
 Even though the learnings apply to both services, most of the investigation comes from the **Conversation** service, as we want it to scale to infinity reliably (started in February with &lt;50k active conversations, in October it handles &gt;500k).
 
@@ -93,7 +93,7 @@ The worker configuration is defined on the `worker.create` method. Here we focus
 
 ### Task execution and polling
 
-Each worker has a number of pollers and slots for each <Tooltip text="workflow/activity/local-activity/nexus">task type</Tooltip>. The pollers grab tasks from the Temporal server, and the slots execute them.
+Each worker has a number of pollers and slots for each <Tooltip text="workflow/activity/local-activity/nexus">task type</Tooltip>. The pollers grab tasks from the Temporal server, and occupy a slot while the task is being executed.
 The reasoning behind having multiple pollers and not just one is due to performance. From the code docs:
 
 ```plaintext
@@ -114,9 +114,9 @@ _We will focus on workflow and activity tasks, which are the majority of tasks t
 The threading model is explained [here](https://typescript.temporal.io/api/interfaces/worker.WorkerOptions#threading-model). \
 Basically, interactions with the Core SDK happen on the main thread (Node's event loop). There's also at least one worker thread, which the main thread delegates workflow tasks to. This is a great idea, as workflow tasks are CPU bound (they run until the next await).
 
-The number of worker threads is configured with the `workflowThreadPoolSize` option. It defaults to 1 if `reuseV8Context` is true, which it most likely should be, or 2 otherwise.
+The number of worker threads is configured with the `workflowThreadPoolSize` option. It defaults to 1 if `reuseV8Context` is true, or 2 otherwise.
 
-Workflow tasks tend to be lightweight, so the defaults should be fine.
+Workflow tasks tend to be lightweight, so the defaults are usually fine.
 
 ### Sticky tasks and worker cache
 
@@ -153,14 +153,13 @@ The worker takes more than the start-to-close timeout to complete the tasks, so 
 
 <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 1rem 1.5rem; margin: 2rem 0; border-radius: 4px;">
     <strong>Key Insight:</strong> Workflow tasks take so long to complete, not because they are expensive
-    (they take ~10ms), but because there are many slots, which implies there are many pollers and workflow
-    task completions that need to be sent to the Temporal server, which fills the event loop, blocking the
-    main thread which delays the response to the Temporal server.
+    (they take _tens of milliseconds_), but because there are many slots executing concurrently along with the
+    main thread.
 </div>
 
 ### Threading model
 
-The tuner grants way too many workflow slots no matter what `targetCPU` is specified. To understand why, we need to look at the threading model.
+In all my tests, the tuner grants way too many workflow slots no matter what `targetCPU` is specified. To understand why, we need to look at the threading model.
 
 <figure style="margin: 2rem 0;">
     <img
@@ -175,7 +174,7 @@ The tuner grants way too many workflow slots no matter what `targetCPU` is speci
 
 This is running on ECS Fargate, on single vCPU instances.
 
-I tested running 2 vCPU instances, with the default configuration, and the tuner was _more_ useful, but still granted too many slots.
+Running 2 vCPU instances, with the default configuration, the tuner was _slightly more_ useful, but still granted too many slots.
 
 <figure style="margin: 2rem 0;">
     <img
@@ -188,8 +187,7 @@ I tested running 2 vCPU instances, with the default configuration, and the tuner
     </figcaption>
 </figure>
 
-When configuring a fixed sized workflow task slot supplier, with 2 vCPUs, I could get up to twice the number of slots as with 1 vCPU, but I was unable to reach more than 75% CPU usage, which makes sense, as performance is bound by the main thread, which is mostly I/O bound. \
-Performance with 2 vCPUs is more stable, as variations in workflow task cost and having to replay or not happen in the worker thread, which is not at 100%.
+When configuring a fixed sized workflow task slot supplier, with 2 vCPUs and one worker thread, I could get a bit less than twice the number of slots as with 1 vCPU, but maximum CPU usage was less than 75%, which makes sense, the worker thread was at full capacity, and the main thread was half-idle, mostly due to I/O bound work.
 
 <figure style="margin: 2rem 0;">
     <img
@@ -202,14 +200,9 @@ Performance with 2 vCPUs is more stable, as variations in workflow task cost and
     </figcaption>
 </figure>
 
-<div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 1rem 1.5rem; margin: 2rem 0; border-radius: 4px;">
-    <strong>Key Insight:</strong> Using resource-based tuner (the default) for workflow tasks with 1 vCPU
-    makes `targetCPU` useless. With 2 vCPUs, it's still not good enough.
-</div>
-
 ## Conclusions
 
-I do not recommend using the tuner with default options, it causes too many workflow task slots, which makes them time out and be retried, burning CPU cycles for no reason.
+I couldn't get the tuner to work as expected, so I can't recommend using it, it causes too many workflow task slots, which makes them time out and be retried, burning CPU cycles for no reason.
 
 The most important thing is to use a fixed sized workflow task slot supplier, with a size that is a good fit for your workload.
 
@@ -231,11 +224,11 @@ If no configuration is used (no tuner, no maxConcurrentWorkflowTaskExecutions), 
 Well, It's not that bad... \
 For parallel programming languages (like go and java, which are likely Temporal's target languages), it makes sense, as we want to reduce the percentage of I/O work, and there's no event loop or main thread that limits performance.
 
-It just is bad for the typescript sdk (I think the python sdk is similar), which only executes workflows on the worker thread, and the main thread is the limiting factor. It is even worse for 1 vCPU instances, which is how Node workers are usually deployed.
+I have explored more in detail the tuner, running on 2vCPU instances, and poller configuration, which you can read about in the [deep-dive](/work/temporal/worker-configuration/deep-dive) article.
 
-## Our Current worker configuration
+## A decent worker configuration
 
-We now use the following configuration:
+~~We now use~~ A good enough configuration is the following:
 
 ```typescript
 const config = {
@@ -286,7 +279,7 @@ With this configuration, 100% of users sending messages succeed.
 
 ### Why not just 1 slot?
 
-Even though the default is not good, the docs are correct in that worker performance is mostly network bound so it's still useful to have multiple slots. We want to ensure that the worker thread is never idle due to having no work to do.
+Even though the default is not good, the docs are correct in that worker performance is mostly network bound so it's still useful to have multiple slots. We want to make sure that either the workflow thread or the main thread are never idle due to having no work to do.
 
 ## Running workers in production
 
@@ -295,3 +288,7 @@ This article is related to worker configuration, but to run workers in productio
 Workers should run on fixed-size instances and scale horizontally. (We use ECS Fargate, and run 1-50 (usually under 10) instances per service, larger teams probably use Kubernetes)
 
 Scaling should be done on average CPU usage across worker instances, and either task backlog count or backlog age. (We send task queue metrics to CloudWatch)
+
+## Further reading
+
+If you are interested in understanding the configuration and the details of the many experiments I have run, you can read the [deep-dive](/work/temporal/worker-configuration/deep-dive) article.
