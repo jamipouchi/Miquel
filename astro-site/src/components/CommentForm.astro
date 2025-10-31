@@ -357,6 +357,11 @@ const baseUrl = import.meta.env.DEV ? 'http://localhost:8787' : 'https://api.miq
       submitButton.disabled = true;
       submitButton.textContent = 'Posting...';
 
+      // Add comment optimistically immediately
+      if (window.addCommentOptimistically) {
+        window.addCommentOptimistically(name, message, parentPath);
+      }
+
       try {
         const res = await fetch(`${baseUrl}/comments`, {
           method: 'POST',
@@ -368,7 +373,7 @@ const baseUrl = import.meta.env.DEV ? 'http://localhost:8787' : 'https://api.miq
 
         if (res.ok) {
           showMessage('Comment posted successfully!', 'success');
-          
+
           // Clear form
           nameInput.value = '';
           messageInput.value = '';
@@ -382,16 +387,24 @@ const baseUrl = import.meta.env.DEV ? 'http://localhost:8787' : 'https://api.miq
           formTitle.textContent = 'Leave a Comment';
           parentPath = [];
 
-          // Refresh comments list (if available)
+          // Refresh comments list after a delay to allow for R2 propagation
           if (window.refreshComments) {
-            setTimeout(() => window.refreshComments(), 500);
+            setTimeout(() => window.refreshComments(), 3000);
           }
         } else {
+          // Failed - revert the optimistic update
           showMessage(data.error || 'Failed to post comment. Please try again.', 'error');
+          if (window.refreshComments) {
+            window.refreshComments();
+          }
         }
       } catch (err) {
         console.error('Comment submission error:', err);
         showMessage('An error occurred. Please try again later.', 'error');
+        // Failed - revert the optimistic update
+        if (window.refreshComments) {
+          window.refreshComments();
+        }
       } finally {
         // Re-enable form
         nameInput.disabled = false;

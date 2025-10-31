@@ -198,6 +198,8 @@ const commentsUrl = `https://comments.miquelpuigturon.com${path}.json`;
     const empty = document.getElementById('comments-empty');
     const list = document.getElementById('comments-list');
 
+    let currentComments = [];
+
     async function loadComments() {
       try {
         const response = await fetch(url);
@@ -221,15 +223,15 @@ const commentsUrl = `https://comments.miquelpuigturon.com${path}.json`;
         }
 
         const data = await response.json();
-        const comments = data.comments || [];
+        currentComments = data.comments || [];
 
         loading.style.display = 'none';
         empty.style.display = 'none';
         list.style.display = 'none';
 
-        if (comments.length > 0) {
+        if (currentComments.length > 0) {
           list.style.display = 'flex';
-          displayComments(comments);
+          displayComments(currentComments);
         } else {
           empty.style.display = 'block';
         }
@@ -284,8 +286,56 @@ const commentsUrl = `https://comments.miquelpuigturon.com${path}.json`;
       return div.innerHTML;
     }
 
-    // Expose refresh function for optimistic updates
+    function insertCommentAtPath(comments, parentPath, newComment) {
+      if (parentPath.length === 0) {
+        // Top-level comment
+        return [...comments, newComment];
+      }
+
+      // Navigate to parent comment
+      const [first, ...rest] = parentPath;
+      const updatedComments = [...comments];
+
+      if (first >= updatedComments.length) {
+        return comments;
+      }
+
+      if (rest.length === 0) {
+        // Insert as child of this comment
+        updatedComments[first] = {
+          ...updatedComments[first],
+          comments: [...(updatedComments[first].comments || []), newComment]
+        };
+      } else {
+        // Recurse deeper
+        updatedComments[first] = {
+          ...updatedComments[first],
+          comments: insertCommentAtPath(updatedComments[first].comments || [], rest, newComment)
+        };
+      }
+
+      return updatedComments;
+    }
+
+    function addCommentOptimistically(name, message, parentPath = []) {
+      const newComment = {
+        name,
+        message,
+        created_at: new Date().toISOString(),
+        comments: []
+      };
+
+      currentComments = insertCommentAtPath(currentComments, parentPath, newComment);
+
+      // Update UI
+      empty.style.display = 'none';
+      list.style.display = 'flex';
+      displayComments(currentComments);
+    }
+
+    // Expose functions for optimistic updates
     window.refreshComments = loadComments;
+    window.addCommentOptimistically = addCommentOptimistically;
 
     loadComments();
   }
