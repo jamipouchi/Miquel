@@ -89,7 +89,7 @@
     },
     "ratelimits": [
         {
-            "namespace_id": "comment_rate_limit",
+            "namespace_id": "69",
             "name": "RATE_LIMITER",
             "simple": { "limit": 3, "period": 60 }
         }
