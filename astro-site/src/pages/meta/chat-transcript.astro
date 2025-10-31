@@ -1,6 +1,8 @@
 ---
 import '../../styles/global.css';
 import CommonHead from '../../components/CommonHead.astro';
+import CommentList from '../../components/CommentList.astro';
+import CommentForm from '../../components/CommentForm.astro';
 import Content from '../../content/pages/chat-transcript.md';
 ---
 
@@ -11,6 +13,11 @@ import Content from '../../content/pages/chat-transcript.md';
   <body>
     <article class="prose chat-transcript">
       <Content />
+      
+      <div class="comments-section">
+        <CommentList path="/meta/chat-transcript" />
+        <CommentForm path="/meta/chat-transcript" />
+      </div>
     </article>
   </body>
 </html>
@@ -27,6 +34,15 @@ import Content from '../../content/pages/chat-transcript.md';
 
     for (let i = 0; i < children.length; i++) {
       const el = children[i];
+      
+      // Stop processing if we hit the comments section
+      if (el.classList?.contains('comments-section')) {
+        if (currentSection) {
+          sections.push(currentSection);
+          currentSection = null;
+        }
+        break;
+      }
       
       // HR marks the start of a new section
       if (el.tagName === 'HR') {
@@ -88,6 +104,10 @@ import Content from '../../content/pages/chat-transcript.md';
 </script>
 
 <style>
+  .comments-section {
+    margin-top: 3rem;
+  }
+
   .chat-section {
     margin: 1.5rem 0;
     border: 1px solid #e0e0e0;

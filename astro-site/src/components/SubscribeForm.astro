@@ -55,7 +55,7 @@ const baseUrl = import.meta.env.DEV ? 'http://localhost:8787' : 'https://api.miq
     <div class="modal-body">
       <section>
         <h3>📧 What happens when you subscribe?</h3>
-        <p>Your email is stored securely in a Cloudflare D1 database associated with the specific path you're subscribing to.</p>
+        <p>Your email is encrypted and stored securely in a Cloudflare D1 database associated with the specific path you're subscribing to.</p>
       </section>
 
       <section>
@@ -77,7 +77,7 @@ const baseUrl = import.meta.env.DEV ? 'http://localhost:8787' : 'https://api.miq
 
       <section>
         <h3>🔒 Privacy & storage</h3>
-        <p>Your email is stored in a Cloudflare D1 database. Only used for sending notifications.</p>
+        <p>Your email is encrypted and stored in a Cloudflare D1 database. Only used for sending notifications.</p>
       </section>
 
       <section>
@@ -426,6 +426,10 @@ const baseUrl = import.meta.env.DEV ? 'http://localhost:8787' : 'https://api.miq
     const modalOverlay = document.getElementById('modal-overlay');
 
     if (!form || !emailInput || !submitButton || !messageDiv || !modal || !helpButton || !modalClose || !modalOverlay) return;
+
+    // Prevent reinitialization - check if already initialized
+    if (form.dataset.initialized === 'true') return;
+    form.dataset.initialized = 'true';
 
     // Ensure modal is hidden initially
     modal.classList.remove('show');

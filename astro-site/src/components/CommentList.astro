@@ -1,0 +1,301 @@
+---
+interface Props {
+  path: string;
+}
+const { path } = Astro.props;
+
+const commentsUrl = `https://comments.miquelpuigturon.com${path}.json`;
+---
+
+<div class="comments-section" id="comments-section" data-path={path} data-url={commentsUrl}>
+  <div class="comments-separator"></div>
+  <h3 class="comments-title">Comments</h3>
+  <div id="comments-loading" class="comments-loading">Loading comments...</div>
+  <div id="comments-error" class="comments-error" style="display: none;"></div>
+  <div id="comments-empty" class="comments-empty" style="display: none;">No comments yet.</div>
+  <div id="comments-list" class="comments-list" style="display: none;"></div>
+</div>
+
+<style is:global>
+  .comments-section {
+    margin: 3rem 0 1.5rem 0;
+    padding: 0;
+  }
+
+  .comments-separator {
+    height: 1px;
+    background: linear-gradient(to right, transparent, #d0d0d0 20%, #d0d0d0 80%, transparent);
+    margin: 0 0 2.5rem 0;
+  }
+
+  .comments-title {
+    font-size: 1.5rem;
+    color: #2c3e50;
+    margin: 0 0 1.5rem 0;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  .comments-loading {
+    color: #666;
+    font-size: 0.9rem;
+    padding: 1rem;
+    text-align: center;
+  }
+
+  .comments-error {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+    padding: 0.75rem;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+  }
+
+  .comments-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .comment {
+    background-color: #ffffff;
+    border: 1px solid #e8e8e8;
+    border-radius: 8px;
+    padding: 1.25rem;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  }
+
+  .comment:hover {
+    border-color: #d0d0d0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    transform: translateY(-1px);
+  }
+
+  .comment-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 0.75rem;
+    gap: 1rem;
+  }
+
+  .comment-name {
+    font-weight: 600;
+    color: #2c3e50;
+    font-size: 1rem;
+    letter-spacing: -0.01em;
+  }
+
+  .comment-date {
+    font-size: 0.85rem;
+    color: #64748b;
+    white-space: nowrap;
+  }
+
+  .comment-message {
+    color: #475569;
+    line-height: 1.7;
+    font-size: 0.95rem;
+    margin: 0 0 0.75rem 0;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+  }
+
+  .reply-button {
+    padding: 0.5rem 1rem;
+    background-color: transparent;
+    color: #0066cc;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .reply-button:hover {
+    background-color: #0066cc;
+    color: white;
+    border-color: #0066cc;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 102, 204, 0.2);
+  }
+
+  .reply-button:active {
+    transform: translateY(0);
+  }
+
+  .nested-comments {
+    margin-top: 1.25rem;
+    margin-left: 1.5rem;
+    padding-left: 1.5rem;
+    border-left: 3px solid #e8e8e8;
+  }
+
+  .nested-comments .comment {
+    background-color: #fafafa;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  }
+
+  .nested-comments .comment:hover {
+    background-color: #ffffff;
+  }
+
+  .comments-empty {
+    color: #94a3b8;
+    font-size: 0.95rem;
+    margin-bottom: 1.5rem;
+    font-style: italic;
+  }
+
+  .reply-form-placeholder {
+    margin-top: 1rem;
+  }
+
+  @media (max-width: 640px) {
+    .comments-title {
+      font-size: 1.3rem;
+    }
+
+    .comment {
+      padding: 1rem;
+    }
+
+    .comment-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.25rem;
+    }
+
+    .nested-comments {
+      margin-left: 0.75rem;
+      padding-left: 0.75rem;
+      border-left-width: 2px;
+    }
+
+    .reply-button {
+      width: 100%;
+      text-align: center;
+    }
+  }
+</style>
+
+<script is:inline>
+  function initCommentList() {
+    const section = document.getElementById('comments-section');
+    if (!section) return;
+
+    // Prevent reinitialization - check if already initialized
+    if (section.dataset.initialized === 'true') return;
+    section.dataset.initialized = 'true';
+
+    const url = section.dataset.url;
+    const loading = document.getElementById('comments-loading');
+    const error = document.getElementById('comments-error');
+    const empty = document.getElementById('comments-empty');
+    const list = document.getElementById('comments-list');
+
+    async function loadComments() {
+      try {
+        const response = await fetch(url);
+        
+        // Handle 404 - page doesn't have comments initialized
+        if (response.status === 404) {
+          // Hide entire comments section
+          section.style.display = 'none';
+          
+          // Hide comment form
+          const commentForm = document.getElementById('comment-form-container');
+          if (commentForm) {
+            commentForm.style.display = 'none';
+          }
+          
+          return;
+        }
+
+        if (!response.ok) {
+          throw new Error('Failed to load comments');
+        }
+
+        const data = await response.json();
+        const comments = data.comments || [];
+
+        loading.style.display = 'none';
+        empty.style.display = 'none';
+        list.style.display = 'none';
+
+        if (comments.length > 0) {
+          list.style.display = 'flex';
+          displayComments(comments);
+        } else {
+          empty.style.display = 'block';
+        }
+      } catch (err) {
+        console.error('Error loading comments:', err);
+        loading.style.display = 'none';
+        error.style.display = 'block';
+        error.textContent = 'Failed to load comments. Please try again later.';
+      }
+    }
+
+    function renderComments(comments, parentPath = []) {
+      return comments.map((comment, index) => {
+        const currentPath = [...parentPath, index];
+        const date = new Date(comment.created_at);
+        const formattedDate = date.toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+
+        const nestedComments = comment.comments && comment.comments.length > 0
+          ? `<div class="nested-comments">${renderComments(comment.comments, currentPath)}</div>`
+          : '';
+
+        return `
+          <div class="comment" data-comment-path="${JSON.stringify(currentPath)}">
+            <div class="comment-header">
+              <div class="comment-name">${escapeHtml(comment.name)}</div>
+              <div class="comment-date">${formattedDate}</div>
+            </div>
+            <p class="comment-message">${escapeHtml(comment.message)}</p>
+            <button class="reply-button" onclick="window.replyToComment(${JSON.stringify(currentPath)})">
+              Reply
+            </button>
+            <div class="reply-form-placeholder" data-path="${JSON.stringify(currentPath)}"></div>
+            ${nestedComments}
+          </div>
+        `;
+      }).join('');
+    }
+
+    function displayComments(comments) {
+      list.innerHTML = renderComments(comments);
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // Expose refresh function for optimistic updates
+    window.refreshComments = loadComments;
+
+    loadComments();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initCommentList);
+  } else {
+    initCommentList();
+  }
+
+  document.addEventListener('astro:page-load', initCommentList);
+</script>
+

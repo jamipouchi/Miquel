@@ -21,16 +21,36 @@
      * databases, object storage, AI inference, real-time communication and more.
      * https://developers.cloudflare.com/workers/runtime-apis/bindings/
      */
-    "vars": { "DEV": true },
+    "vars": {
+        "DEV": true
+    },
     "env": {
         "production": {
-            "vars": { "DEV": false },
+            "vars": {
+                "DEV": false
+            },
             "routes": ["api.miquelpuigturon.com/*"],
             "d1_databases": [
                 {
                     "binding": "personal_site",
                     "database_name": "personal-site",
                     "database_id": "166fc1fc-543c-4355-84af-d7461d19e300"
+                }
+            ],
+            "r2_buckets": [
+                {
+                    "binding": "COMMENTS_BUCKET",
+                    "bucket_name": "comments"
+                }
+            ],
+            "ai": {
+                "binding": "AI"
+            },
+            "ratelimits": [
+                {
+                    "namespace_id": "comment_rate_limit",
+                    "name": "RATE_LIMITER",
+                    "simple": { "limit": 3, "period": 60 }
                 }
             ]
         }
@@ -54,6 +74,24 @@
             "binding": "personal_site",
             "database_name": "personal-site",
             "database_id": "166fc1fc-543c-4355-84af-d7461d19e300"
+        }
+    ],
+    "r2_buckets": [
+        {
+            "bucket_name": "comments",
+            "binding": "COMMENTS_BUCKET",
+            "remote": true
+        }
+    ],
+    "ai": {
+        "binding": "AI",
+        "remote": true
+    },
+    "ratelimits": [
+        {
+            "namespace_id": "comment_rate_limit",
+            "name": "RATE_LIMITER",
+            "simple": { "limit": 3, "period": 60 }
         }
     ]
 }

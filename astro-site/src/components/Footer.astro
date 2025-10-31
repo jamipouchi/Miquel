@@ -1,14 +1,24 @@
 ---
 import TreeNav from './TreeNav.astro';
 import SubscribeForm from './SubscribeForm.astro';
+import CommentList from './CommentList.astro';
+import CommentForm from './CommentForm.astro';
 
 interface Props {
   currentSlug: string;
   path: string;
+  skipComments?: boolean;
 }
 
-const { currentSlug, path } = Astro.props;
+const { currentSlug, path, skipComments } = Astro.props;
 ---
+
+{!skipComments && (
+  <div class="comments-section">
+    <CommentList path={path} />
+      <CommentForm path={path} />
+    </div>
+  )}
 
 <footer class="site-footer">
   <div class="footer-content">
@@ -23,6 +33,11 @@ const { currentSlug, path } = Astro.props;
 </footer>
 
 <style>
+  .comments-section {
+    margin-top: 3rem;
+    margin-bottom: 2rem;
+  }
+
   .site-footer {
     margin-top: 4rem;
     padding-top: 3rem;

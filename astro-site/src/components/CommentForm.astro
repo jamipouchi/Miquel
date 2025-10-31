@@ -1,0 +1,435 @@
+---
+interface Props {
+  path: string;
+}
+const { path } = Astro.props;
+
+const baseUrl = import.meta.env.DEV ? 'http://localhost:8787' : 'https://api.miquelpuigturon.com';
+---
+
+<div class="comment-form-container" id="comment-form-container">
+  <button type="button" id="show-comment-form-btn" class="show-form-button">
+    Add a comment
+  </button>
+  
+  <div id="comment-form-wrapper" class="comment-form-wrapper" style="display: none;">
+    <div class="form-header">
+      <h3 class="comment-form-title" id="comment-form-title">Leave a Comment</h3>
+      <button type="button" id="cancel-reply-btn" class="cancel-reply-button" style="display: none;">Cancel</button>
+    </div>
+    
+    <form id="comment-form" data-path={path} data-base-url={baseUrl} class="comment-form" method="post">
+    <div class="form-group">
+      <label for="comment-name" class="form-label">Name</label>
+      <input 
+        type="text" 
+        id="comment-name"
+        name="name" 
+        placeholder="Your name" 
+        required 
+        maxlength="50"
+        aria-label="Your name"
+        class="form-input"
+      />
+    </div>
+
+    <div class="form-group">
+      <label for="comment-message" class="form-label">Message</label>
+      <textarea 
+        id="comment-message"
+        name="message" 
+        placeholder="Your comment..." 
+        required 
+        maxlength="500"
+        rows="4"
+        aria-label="Your comment"
+        class="form-textarea"
+      ></textarea>
+      <div class="char-counter">
+        <span id="char-count">0</span> / 500
+      </div>
+    </div>
+    
+    <button type="submit" id="comment-submit-button" class="submit-button">
+      Post Comment
+    </button>
+  </form>
+  
+  <div id="comment-form-message" class="form-message" role="alert" aria-live="polite"></div>
+  </div>
+</div>
+
+<style>
+  .comment-form-container {
+    margin: 2rem 0;
+  }
+
+  .show-form-button {
+    padding: 0.75rem 1.75rem;
+    background-color: #0066cc;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0, 102, 204, 0.2);
+  }
+
+  .show-form-button:hover {
+    background-color: #0052a3;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 102, 204, 0.3);
+  }
+
+  .show-form-button:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(0, 102, 204, 0.2);
+  }
+
+  .comment-form-wrapper {
+    margin-top: 1.5rem;
+    padding: 1.75rem;
+    background-color: #ffffff;
+    border: 1px solid #e8e8e8;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  }
+
+  .form-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.25rem;
+  }
+
+  .comment-form-title {
+    margin: 0;
+    font-size: 1.25rem;
+    color: #2c3e50;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  .cancel-reply-button {
+    padding: 0.5rem 1rem;
+    background-color: transparent;
+    color: #64748b;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .cancel-reply-button:hover {
+    background-color: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #475569;
+  }
+
+  .comment-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .form-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #2c3e50;
+    letter-spacing: -0.005em;
+  }
+
+  .form-input,
+  .form-textarea {
+    padding: 0.875rem;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    color: #2c3e50;
+    font-family: inherit;
+    transition: all 0.2s ease;
+    background-color: #fafafa;
+  }
+
+  .form-input:focus,
+  .form-textarea:focus {
+    outline: none;
+    border-color: #0066cc;
+    box-shadow: 0 0 0 4px rgba(0, 102, 204, 0.08);
+    background-color: #ffffff;
+  }
+
+  .form-input:disabled,
+  .form-textarea:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background-color: #f5f5f5;
+  }
+
+  .form-textarea {
+    resize: vertical;
+    min-height: 100px;
+  }
+
+  .char-counter {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    text-align: right;
+    margin-top: 0.25rem;
+  }
+
+  .submit-button {
+    padding: 0.875rem 2rem;
+    background-color: #0066cc;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    align-self: flex-start;
+    box-shadow: 0 2px 4px rgba(0, 102, 204, 0.2);
+  }
+
+  .submit-button:hover:not(:disabled) {
+    background-color: #0052a3;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 102, 204, 0.3);
+  }
+
+  .submit-button:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(0, 102, 204, 0.2);
+  }
+
+  .submit-button:disabled {
+    background-color: #94a3b8;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
+  .form-message {
+    margin-top: 1rem;
+    padding: 0.75rem;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    display: none;
+    line-height: 1.4;
+  }
+
+  .form-message.show {
+    display: block;
+  }
+
+  .form-message.success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+  }
+
+  .form-message.error {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+  }
+
+  @media (max-width: 640px) {
+    .comment-form-wrapper {
+      padding: 1.25rem;
+    }
+
+    .submit-button {
+      width: 100%;
+      align-self: stretch;
+    }
+
+    .show-form-button {
+      width: 100%;
+    }
+  }
+</style>
+
+<script is:inline>
+  function initCommentForm() {
+    const form = document.getElementById('comment-form');
+    const nameInput = document.getElementById('comment-name');
+    const messageInput = document.getElementById('comment-message');
+    const submitButton = document.getElementById('comment-submit-button');
+    const messageDiv = document.getElementById('comment-form-message');
+    const charCount = document.getElementById('char-count');
+    const showFormBtn = document.getElementById('show-comment-form-btn');
+    const formWrapper = document.getElementById('comment-form-wrapper');
+    const formTitle = document.getElementById('comment-form-title');
+    const cancelReplyBtn = document.getElementById('cancel-reply-btn');
+    const formContainer = document.getElementById('comment-form-container');
+
+    if (!form || !nameInput || !messageInput || !submitButton || !messageDiv || !charCount || !showFormBtn || !formWrapper || !formTitle || !cancelReplyBtn || !formContainer) return;
+
+    // Prevent reinitialization - check if already initialized
+    if (form.dataset.initialized === 'true') return;
+    form.dataset.initialized = 'true';
+
+    // Store parent comment path (for threading)
+    let parentPath = [];
+    let currentPlaceholder = null; // Track where form is currently placed
+
+    // Show form at bottom for new top-level comment
+    showFormBtn.addEventListener('click', () => {
+      moveFormToOriginalLocation();
+      formWrapper.style.display = 'block';
+      showFormBtn.style.display = 'none';
+      formTitle.textContent = 'Leave a Comment';
+      cancelReplyBtn.style.display = 'none';
+      parentPath = [];
+      nameInput.focus();
+    });
+
+    // Cancel reply and return form to bottom
+    cancelReplyBtn.addEventListener('click', () => {
+      moveFormToOriginalLocation();
+      formWrapper.style.display = 'none';
+      showFormBtn.style.display = 'block';
+      cancelReplyBtn.style.display = 'none';
+      formTitle.textContent = 'Leave a Comment';
+      parentPath = [];
+      nameInput.value = '';
+      messageInput.value = '';
+      charCount.textContent = '0';
+    });
+
+    // Move form back to original container
+    function moveFormToOriginalLocation() {
+      if (currentPlaceholder) {
+        currentPlaceholder.innerHTML = '';
+        currentPlaceholder = null;
+      }
+      formContainer.appendChild(formWrapper);
+    }
+
+    function showMessage(text, type) {
+      messageDiv.textContent = text;
+      messageDiv.className = `form-message show ${type}`;
+      if (type === 'success') {
+        setTimeout(() => messageDiv.classList.remove('show'), 5000);
+      }
+    }
+
+    // Character counter
+    messageInput.addEventListener('input', () => {
+      charCount.textContent = messageInput.value.length;
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const name = nameInput.value.trim();
+      const message = messageInput.value.trim();
+      const path = form.dataset.path;
+      const baseUrl = form.dataset.baseUrl;
+
+      // Validate both fields are filled
+      if (!name || name.length === 0) {
+        showMessage('Please enter your name', 'error');
+        nameInput.focus();
+        return;
+      }
+
+      if (!message || message.length === 0) {
+        showMessage('Please enter a message', 'error');
+        messageInput.focus();
+        return;
+      }
+
+      // Disable form
+      nameInput.disabled = true;
+      messageInput.disabled = true;
+      submitButton.disabled = true;
+      submitButton.textContent = 'Posting...';
+
+      try {
+        const res = await fetch(`${baseUrl}/comments`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, message, path, parentPath })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          showMessage('Comment posted successfully!', 'success');
+          
+          // Clear form
+          nameInput.value = '';
+          messageInput.value = '';
+          charCount.textContent = '0';
+          
+          // Return form to original location
+          moveFormToOriginalLocation();
+          formWrapper.style.display = 'none';
+          showFormBtn.style.display = 'block';
+          cancelReplyBtn.style.display = 'none';
+          formTitle.textContent = 'Leave a Comment';
+          parentPath = [];
+
+          // Refresh comments list (if available)
+          if (window.refreshComments) {
+            setTimeout(() => window.refreshComments(), 500);
+          }
+        } else {
+          showMessage(data.error || 'Failed to post comment. Please try again.', 'error');
+        }
+      } catch (err) {
+        console.error('Comment submission error:', err);
+        showMessage('An error occurred. Please try again later.', 'error');
+      } finally {
+        // Re-enable form
+        nameInput.disabled = false;
+        messageInput.disabled = false;
+        submitButton.disabled = false;
+        submitButton.textContent = 'Post Comment';
+      }
+    });
+
+    // Expose function to reply to a comment
+    window.replyToComment = function(path) {
+      parentPath = path;
+      
+      // Find the placeholder for this comment
+      const placeholder = document.querySelector(`.reply-form-placeholder[data-path='${JSON.stringify(path)}']`);
+      
+      if (placeholder) {
+        // Move form to the placeholder
+        moveFormToOriginalLocation(); // First move it back if it's somewhere else
+        placeholder.appendChild(formWrapper);
+        currentPlaceholder = placeholder;
+      }
+      
+      // Update UI
+      formWrapper.style.display = 'block';
+      showFormBtn.style.display = 'none';
+      formTitle.textContent = 'Reply to Comment';
+      cancelReplyBtn.style.display = 'block';
+      nameInput.focus();
+    };
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initCommentForm);
+  } else {
+    initCommentForm();
+  }
+
+  document.addEventListener('astro:page-load', initCommentForm);
+</script>
+
