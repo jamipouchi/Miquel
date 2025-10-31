@@ -260,21 +260,14 @@ const commentsUrl = `https://comments.miquelpuigturon.com${path}.json`;
     const empty = document.getElementById('comments-empty');
     const list = document.getElementById('comments-list');
 
-    let currentComments = [];
-
-    async function loadComments({ skipCache = false } = {}) {
+    async function loadComments() {
       try {
-        const fetchUrl = skipCache ? `${url}?_=${Date.now()}` : url;
-        const response = await fetch(fetchUrl, {
-          cache: skipCache ? 'no-cache' : 'default'
-        });
+        const fetchUrl = url;
+        const response = await fetch(fetchUrl);
         
-        // Handle 404 - page doesn't have comments initialized
         if (response.status === 404) {
-          // Hide entire comments section
           section.style.display = 'none';
           
-          // Hide comment form
           const commentForm = document.getElementById('comment-form-container');
           if (commentForm) {
             commentForm.style.display = 'none';
@@ -288,15 +281,15 @@ const commentsUrl = `https://comments.miquelpuigturon.com${path}.json`;
         }
 
         const data = await response.json();
-        currentComments = data.comments || [];
+        const comments = data.comments || [];
 
         loading.style.display = 'none';
         empty.style.display = 'none';
         list.style.display = 'none';
 
-        if (currentComments.length > 0) {
+        if (comments.length > 0) {
           list.style.display = 'flex';
-          displayComments(currentComments);
+          displayComments(comments);
         } else {
           empty.style.display = 'block';
         }
@@ -365,56 +358,7 @@ const commentsUrl = `https://comments.miquelpuigturon.com${path}.json`;
       return div.innerHTML;
     }
 
-    function insertCommentAtPath(comments, parentPath, newComment) {
-      if (parentPath.length === 0) {
-        // Top-level comment
-        return [...comments, newComment];
-      }
-
-      // Navigate to parent comment
-      const [first, ...rest] = parentPath;
-      const updatedComments = [...comments];
-
-      if (first >= updatedComments.length) {
-        return comments;
-      }
-
-      if (rest.length === 0) {
-        // Insert as child of this comment
-        updatedComments[first] = {
-          ...updatedComments[first],
-          comments: [...(updatedComments[first].comments || []), newComment]
-        };
-      } else {
-        // Recurse deeper
-        updatedComments[first] = {
-          ...updatedComments[first],
-          comments: insertCommentAtPath(updatedComments[first].comments || [], rest, newComment)
-        };
-      }
-
-      return updatedComments;
-    }
-
-    function addCommentOptimistically(name, message, parentPath = []) {
-      const newComment = {
-        name,
-        message,
-        created_at: new Date().toISOString(),
-        comments: []
-      };
-
-      currentComments = insertCommentAtPath(currentComments, parentPath, newComment);
-
-      // Update UI
-      empty.style.display = 'none';
-      list.style.display = 'flex';
-      displayComments(currentComments);
-    }
-
-    // Expose functions for optimistic updates
-    window.refreshComments = () => loadComments({ skipCache: true });
-    window.addCommentOptimistically = addCommentOptimistically;
+    window.displayComments = displayComments;
 
     loadComments();
   }

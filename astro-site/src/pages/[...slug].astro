@@ -3,6 +3,7 @@ import { getCollection } from 'astro:content';
 import '../styles/global.css';
 import CommonHead from '../components/CommonHead.astro';
 import Footer from '../components/Footer.astro';
+import TableOfContents from '../components/TableOfContents.astro';
 
 export async function getStaticPaths() {
   const allPages = await getCollection('pages');
@@ -17,7 +18,7 @@ export async function getStaticPaths() {
 }
 
 const { page } = Astro.props;
-const { Content } = await page.render();
+const { Content, headings } = await page.render();
 
 const title = page.slug.split('/').pop()!;
 const path = '/' + page.slug;
@@ -27,7 +28,8 @@ const path = '/' + page.slug;
   <head>
     <CommonHead title={title} />
   </head>
-  <body>
+  <body class="with-toc">
+    <TableOfContents headings={headings} />
     <article class="prose">
       <Content />
       <Footer currentSlug={page.slug} path={path} />

@@ -3,23 +3,35 @@ import '../styles/global.css';
 import CommonHead from '../components/CommonHead.astro';
 import CommentList from '../components/CommentList.astro';
 import CommentForm from '../components/CommentForm.astro';
+import TableOfContents from '../components/TableOfContents.astro';
+
+// Define headings for the TOC
+const headings = [
+  { depth: 2, slug: 'philosophy', text: 'Philosophy' },
+  { depth: 2, slug: 'technical-stack', text: 'Technical Stack' },
+  { depth: 2, slug: 'content-structure', text: 'Content Structure' },
+  { depth: 2, slug: 'automatic-routing', text: 'Automatic Routing' },
+  { depth: 2, slug: 'design-choices', text: 'Design Choices' },
+  { depth: 2, slug: 'source', text: 'Source' },
+];
 ---
 
 <html lang="en">
   <head>
     <CommonHead title="Meta" />
   </head>
-  <body>
+  <body class="with-toc">
+    <TableOfContents headings={headings} />
     <article class="prose">
       <h1>Meta</h1>
       
       <p>This page explains how this site is built and structured.</p>
       
-      <h2>Philosophy</h2>
+      <h2 id="philosophy">Philosophy</h2>
       
       <p>This site is designed to be a personal knowledge base — a collection of thoughts, ideas, and reflections organized hierarchically by topic. The design philosophy emphasizes simplicity: write markdown, organize by folders, and the site structure emerges naturally.</p>
       
-      <h2>Technical Stack</h2>
+      <h2 id="technical-stack">Technical Stack</h2>
       
       <p>Built with <a href="https://astro.build/">Astro</a> using content collections. No complex CMS, no database — just markdown files in a folder structure.</p>
 
@@ -33,9 +45,7 @@ import CommentForm from '../components/CommentForm.astro';
       </ul>
 
       
-      <h2>How It Works</h2>
-      
-      <h3>Content Structure</h3>
+      <h2 id="content-structure">Content Structure</h2>
       
       <p>All content lives in <code>src/content/pages/</code> as markdown files:</p>
       
@@ -51,7 +61,7 @@ import CommentForm from '../components/CommentForm.astro';
       
       <p><strong>Folder structure = site structure.</strong> No configuration needed.</p>
       
-      <h2>Automatic Routing</h2>
+      <h2 id="automatic-routing">Automatic Routing</h2>
       
       <p>Three route files handle all pages:</p>
       
@@ -61,14 +71,14 @@ import CommentForm from '../components/CommentForm.astro';
         <li><code>[...slug].astro</code> - All other content pages with unified layout</li>
       </ul>
       
-      <h2>Design Choices</h2>
+      <h2 id="design-choices">Design Choices</h2>
       
       <p><strong>No dark mode</strong>: We are professionals, not guys coding under the covers of their bed.</p>
 
       <p><strong>Hierarchy</strong>: Visual hierarchy matches content hierarchy — home is special, branches organize, leaves contain</p>
 
       
-      <h2>Source</h2>
+      <h2 id="source">Source</h2>
       
       <p>The original implementation of this site was built with cursor through a conversation with Claude 4.5 sonnet. You can read the <a href="/meta/chat-transcript/">full chat transcript</a> to see how it was designed and implemented.</p>
       <p>Further history can be seen at <a href="https://github.com/jamipouchi/Miquel">https://github.com/jamipouchi/Miquel</a>.</p>

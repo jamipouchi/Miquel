@@ -365,14 +365,11 @@ const baseUrl = import.meta.env.DEV ? 'http://localhost:8787' : 'https://api.miq
         });
 
         const data = await res.json();
+        window.displayComments(data.comments);
 
         if (res.ok) {
-          if (window.addCommentOptimistically) {
-            window.addCommentOptimistically(name, message, parentPath);
-          }
           showMessage('Comment posted successfully!', 'success');
 
-          // Clear form
           nameInput.value = '';
           messageInput.value = '';
           charCount.textContent = '0';
@@ -385,12 +382,7 @@ const baseUrl = import.meta.env.DEV ? 'http://localhost:8787' : 'https://api.miq
           formTitle.textContent = 'Leave a Comment';
           parentPath = [];
 
-          // Refresh comments list after a delay to allow for R2 propagation
-          if (window.refreshComments) {
-            window.refreshComments();
-          }
         } else {
-          // Failed - revert the optimistic update
           showMessage(data.error || 'Failed to post comment. Please try again.', 'error');
         }
       } catch (err) {

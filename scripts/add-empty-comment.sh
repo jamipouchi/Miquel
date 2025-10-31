@@ -13,6 +13,6 @@ wrangler r2 object put comments/${path}.json \
   --pipe \
   --remote \
   --content-type "application/json" \
-  --cache-control "public, max-age=60, must-revalidate"
+  --cache-control "no-cache"
 
 echo "✅ Created comments/${path}.json in R2"

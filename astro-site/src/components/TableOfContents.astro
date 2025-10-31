@@ -1,0 +1,164 @@
+---
+interface Props {
+  headings: { depth: number; slug: string; text: string }[];
+}
+
+const { headings } = Astro.props;
+
+// Only show h2 and h3 headings
+const tocHeadings = headings.filter(h => h.depth === 2 || h.depth === 3);
+---
+
+{tocHeadings.length > 0 && (
+  <nav class="table-of-contents">
+    <ul>
+      {tocHeadings.map(heading => (
+        <li class={`toc-${heading.depth}`}>
+          <a href={`#${heading.slug}`}>
+            {heading.text}
+          </a>
+        </li>
+      ))}
+    </ul>
+  </nav>
+)}
+
+<style>
+  .table-of-contents {
+    position: fixed;
+    left: 2rem;
+    top: 2rem;
+    width: 220px;
+    max-height: calc(100vh - 4rem);
+    overflow-y: auto;
+    padding-right: 2rem;
+    border-right: 1px solid #e8e8e8;
+  }
+
+  .table-of-contents ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .table-of-contents li {
+    margin: 0;
+    padding: 0;
+  }
+
+  .table-of-contents a {
+    display: block;
+    padding: 0.35rem 0;
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    color: #aaa;
+    text-decoration: none;
+    transition: color 0.15s ease;
+  }
+
+  .table-of-contents a:hover {
+    color: #0066cc;
+    text-decoration: none;
+  }
+
+  /* Indent H3 items */
+  .toc-3 a {
+    padding-left: 1rem;
+  }
+
+  /* Custom scrollbar for TOC */
+  .table-of-contents::-webkit-scrollbar {
+    width: 2px;
+  }
+
+  .table-of-contents::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .table-of-contents::-webkit-scrollbar-thumb {
+    background: #e0e0e0;
+    border-radius: 1px;
+  }
+
+  .table-of-contents::-webkit-scrollbar-thumb:hover {
+    background: #ccc;
+  }
+
+  /* Hide on smaller screens */
+  @media (max-width: 1450px) {
+    .table-of-contents {
+      display: none;
+    }
+  }
+</style>
+
+<style>
+  .table-of-contents a.active {
+    color: #0066cc !important;
+    font-weight: 500 !important;
+  }
+</style>
+
+<script is:inline>
+  (function() {
+    function initTOCHighlighting() {
+      const article = document.querySelector('article.prose');
+      if (!article) return;
+
+      const headings = article.querySelectorAll('h2[id], h3[id]');
+      const tocLinks = document.querySelectorAll('.table-of-contents a');
+      if (!headings.length || !tocLinks.length) return;
+
+      let currentActiveId = null;
+
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          const id = entry.target.getAttribute('id');
+          
+          // When a heading crosses the top threshold going down (scrolling down)
+          if (entry.isIntersecting && entry.boundingClientRect.top < 200) {
+            currentActiveId = id;
+          }
+          // When scrolling up and a heading enters from top
+          else if (!entry.isIntersecting && entry.boundingClientRect.top < 0) {
+            // Find the previous heading in the list
+            const currentIndex = Array.from(headings).findIndex(h => h.getAttribute('id') === id);
+            if (currentIndex > 0) {
+              currentActiveId = headings[currentIndex - 1].getAttribute('id');
+            }
+          }
+        });
+
+        // Update active states
+        tocLinks.forEach(link => {
+          const href = link.getAttribute('href');
+          link.classList.toggle('active', href === '#' + currentActiveId);
+        });
+      }, {
+        rootMargin: '-150px 0px -80% 0px',
+        threshold: [0, 1]
+      });
+
+      headings.forEach(h => observer.observe(h));
+      
+      // Set initial active heading
+      const firstHeading = headings[0];
+      if (firstHeading && window.scrollY < 200) {
+        currentActiveId = firstHeading.getAttribute('id');
+        tocLinks.forEach(link => {
+          link.classList.toggle('active', link.getAttribute('href') === '#' + currentActiveId);
+        });
+      }
+    }
+
+    // Initialize
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initTOCHighlighting);
+    } else {
+      initTOCHighlighting();
+    }
+
+    // Re-initialize on view transitions
+    document.addEventListener('astro:page-load', initTOCHighlighting);
+  })();
+</script>
