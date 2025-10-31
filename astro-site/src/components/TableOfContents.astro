@@ -111,28 +111,31 @@ const tocHeadings = headings.filter(h => h.depth === 2 || h.depth === 3);
 
       let currentActiveId = null;
 
+      // Function to update active states
+      function updateActiveStates(activeId) {
+        currentActiveId = activeId;
+        tocLinks.forEach(link => {
+          const href = link.getAttribute('href');
+          link.classList.toggle('active', href === '#' + activeId);
+        });
+      }
+
       const observer = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
           const id = entry.target.getAttribute('id');
           
           // When a heading crosses the top threshold going down (scrolling down)
           if (entry.isIntersecting && entry.boundingClientRect.top < 200) {
-            currentActiveId = id;
+            updateActiveStates(id);
           }
           // When scrolling up and a heading enters from top
           else if (!entry.isIntersecting && entry.boundingClientRect.top < 0) {
             // Find the previous heading in the list
             const currentIndex = Array.from(headings).findIndex(h => h.getAttribute('id') === id);
             if (currentIndex > 0) {
-              currentActiveId = headings[currentIndex - 1].getAttribute('id');
+              updateActiveStates(headings[currentIndex - 1].getAttribute('id'));
             }
           }
-        });
-
-        // Update active states
-        tocLinks.forEach(link => {
-          const href = link.getAttribute('href');
-          link.classList.toggle('active', href === '#' + currentActiveId);
         });
       }, {
         rootMargin: '-150px 0px -80% 0px',
@@ -141,13 +144,27 @@ const tocHeadings = headings.filter(h => h.depth === 2 || h.depth === 3);
 
       headings.forEach(h => observer.observe(h));
       
+      // Add click handlers to TOC links
+      tocLinks.forEach(link => {
+        link.addEventListener('click', (e) => {
+          e.preventDefault();
+          const targetId = link.getAttribute('href').substring(1);
+          const target = document.getElementById(targetId);
+          if (target) {
+            // Update active state immediately
+            updateActiveStates(targetId);
+            // Scroll to target instantly
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            // Update URL
+            history.pushState(null, '', '#' + targetId);
+          }
+        });
+      });
+
       // Set initial active heading
       const firstHeading = headings[0];
       if (firstHeading && window.scrollY < 200) {
-        currentActiveId = firstHeading.getAttribute('id');
-        tocLinks.forEach(link => {
-          link.classList.toggle('active', link.getAttribute('href') === '#' + currentActiveId);
-        });
+        updateActiveStates(firstHeading.getAttribute('id'));
       }
     }
 
