@@ -25,13 +25,13 @@ const commentsUrl = `https://comments.miquelpuigturon.com${path}.json`;
   .comments-separator {
     height: 1px;
     background: linear-gradient(to right, transparent, #d0d0d0 20%, #d0d0d0 80%, transparent);
-    margin: 0 0 2.5rem 0;
+    margin: 0 0 1.5rem 0;
   }
 
   .comments-title {
     font-size: 1.5rem;
     color: #2c3e50;
-    margin: 0 0 1.5rem 0;
+    margin: 0 0 1rem 0;
     font-weight: 700;
     letter-spacing: -0.02em;
   }
@@ -56,14 +56,14 @@ const commentsUrl = `https://comments.miquelpuigturon.com${path}.json`;
   .comments-list {
     display: flex;
     flex-direction: column;
-    gap: 1.25rem;
+    gap: 0.85rem;
   }
 
   .comment {
     background-color: #ffffff;
     border: 1px solid #e8e8e8;
     border-radius: 8px;
-    padding: 1.25rem;
+    padding: 0.9rem;
     transition: all 0.2s ease;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   }
@@ -78,8 +78,15 @@ const commentsUrl = `https://comments.miquelpuigturon.com${path}.json`;
     display: flex;
     justify-content: space-between;
     align-items: baseline;
-    margin-bottom: 0.75rem;
-    gap: 1rem;
+    margin-bottom: 0.5rem;
+    gap: 0.75rem;
+  }
+
+  .comment-name-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
   }
 
   .comment-name {
@@ -89,49 +96,100 @@ const commentsUrl = `https://comments.miquelpuigturon.com${path}.json`;
     letter-spacing: -0.01em;
   }
 
-  .comment-date {
+  .verified-label {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2rem 0.6rem;
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 700;
+    border-radius: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    line-height: 1.3;
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+    transition: all 0.2s ease;
+    cursor: help;
+  }
+
+  .verified-label::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%) scale(0.9);
+    background: #333;
+    color: white;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    white-space: nowrap;
+    font-size: 0.85rem;
+    font-weight: 500;
+    text-transform: none;
+    letter-spacing: normal;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    z-index: 1000;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  .verified-label:hover::after {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+
+  .comment:hover .verified-label {
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.15) inset;
+    transform: translateY(-1px);
+  }
+
+  .comment-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     font-size: 0.85rem;
     color: #64748b;
     white-space: nowrap;
   }
 
+  .comment-date {
+    color: #64748b;
+  }
+
+  .comment-separator {
+    color: #cbd5e1;
+    user-select: none;
+  }
+
+  .reply-link {
+    color: #64748b;
+    font-weight: 500;
+    cursor: pointer;
+    transition: color 0.15s ease;
+    text-decoration: none;
+  }
+
+  .reply-link:hover {
+    color: #0066cc;
+    text-decoration: underline;
+  }
+
   .comment-message {
     color: #475569;
-    line-height: 1.7;
+    line-height: 1.6;
     font-size: 0.95rem;
-    margin: 0 0 0.75rem 0;
+    margin: 0;
     word-wrap: break-word;
     white-space: pre-wrap;
   }
 
-  .reply-button {
-    padding: 0.5rem 1rem;
-    background-color: transparent;
-    color: #0066cc;
-    border: 1px solid #e0e0e0;
-    border-radius: 6px;
-    font-size: 0.875rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-
-  .reply-button:hover {
-    background-color: #0066cc;
-    color: white;
-    border-color: #0066cc;
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0, 102, 204, 0.2);
-  }
-
-  .reply-button:active {
-    transform: translateY(0);
-  }
-
   .nested-comments {
-    margin-top: 1.25rem;
-    margin-left: 1.5rem;
-    padding-left: 1.5rem;
+    margin-top: 0.75rem;
+    margin-left: 1rem;
+    padding-left: 1rem;
     border-left: 3px solid #e8e8e8;
   }
 
@@ -152,7 +210,7 @@ const commentsUrl = `https://comments.miquelpuigturon.com${path}.json`;
   }
 
   .reply-form-placeholder {
-    margin-top: 1rem;
+    margin-top: 0.5rem;
   }
 
   @media (max-width: 640px) {
@@ -161,24 +219,28 @@ const commentsUrl = `https://comments.miquelpuigturon.com${path}.json`;
     }
 
     .comment {
-      padding: 1rem;
+      padding: 0.75rem;
     }
 
     .comment-header {
       flex-direction: column;
       align-items: flex-start;
-      gap: 0.25rem;
+      gap: 0.4rem;
+    }
+
+    .verified-label {
+      font-size: 0.65rem;
+      padding: 0.15rem 0.5rem;
+    }
+
+    .comment-meta {
+      font-size: 0.8rem;
     }
 
     .nested-comments {
-      margin-left: 0.75rem;
-      padding-left: 0.75rem;
+      margin-left: 0.6rem;
+      padding-left: 0.6rem;
       border-left-width: 2px;
-    }
-
-    .reply-button {
-      width: 100%;
-      text-align: center;
     }
   }
 </style>
@@ -200,9 +262,12 @@ const commentsUrl = `https://comments.miquelpuigturon.com${path}.json`;
 
     let currentComments = [];
 
-    async function loadComments() {
+    async function loadComments({ skipCache = false } = {}) {
       try {
-        const response = await fetch(url);
+        const fetchUrl = skipCache ? `${url}?_=${Date.now()}` : url;
+        const response = await fetch(fetchUrl, {
+          cache: skipCache ? 'no-cache' : 'default'
+        });
         
         // Handle 404 - page doesn't have comments initialized
         if (response.status === 404) {
@@ -259,16 +324,24 @@ const commentsUrl = `https://comments.miquelpuigturon.com${path}.json`;
           ? `<div class="nested-comments">${renderComments(comment.comments, currentPath)}</div>`
           : '';
 
+        const verifiedLabel = comment.verifiedLabel
+          ? `<span class="verified-label" data-tooltip="This commenter has been verified">${escapeHtml(comment.verifiedLabel)}</span>`
+          : '';
+
         return `
           <div class="comment" data-comment-path="${JSON.stringify(currentPath)}">
             <div class="comment-header">
-              <div class="comment-name">${escapeHtml(comment.name)}</div>
-              <div class="comment-date">${formattedDate}</div>
+              <div class="comment-name-wrapper">
+                <span class="comment-name">${escapeHtml(comment.name)}</span>
+                ${verifiedLabel}
+              </div>
+              <div class="comment-meta">
+                <span class="comment-date">${formattedDate}</span>
+                <span class="comment-separator">•</span>
+                <a class="reply-link" onclick="window.replyToComment(${JSON.stringify(currentPath)})">Reply</a>
+              </div>
             </div>
             <p class="comment-message">${escapeHtml(comment.message)}</p>
-            <button class="reply-button" onclick="window.replyToComment(${JSON.stringify(currentPath)})">
-              Reply
-            </button>
             <div class="reply-form-placeholder" data-path="${JSON.stringify(currentPath)}"></div>
             ${nestedComments}
           </div>
@@ -281,8 +354,14 @@ const commentsUrl = `https://comments.miquelpuigturon.com${path}.json`;
     }
 
     function escapeHtml(text) {
+      // First decode any existing HTML entities
+      const textarea = document.createElement('textarea');
+      textarea.innerHTML = text;
+      const decoded = textarea.value;
+
+      // Then escape for safe display
       const div = document.createElement('div');
-      div.textContent = text;
+      div.textContent = decoded;
       return div.innerHTML;
     }
 
@@ -334,7 +413,7 @@ const commentsUrl = `https://comments.miquelpuigturon.com${path}.json`;
     }
 
     // Expose functions for optimistic updates
-    window.refreshComments = loadComments;
+    window.refreshComments = () => loadComments({ skipCache: true });
     window.addCommentOptimistically = addCommentOptimistically;
 
     loadComments();
