@@ -1,4 +1,6 @@
 ---
+import Tooltip from './Tooltip.astro';
+
 interface Props {
   path: string;
 }
@@ -10,7 +12,7 @@ const commentsUrl = `https://comments.miquelpuigturon.com${path}.json`;
 <div class="comments-section" id="comments-section" data-path={path} data-url={commentsUrl}>
   <div class="comments-separator"></div>
   <h3 class="comments-title">Comments</h3>
-  <div id="comments-loading" class="comments-loading">Loading comments...</div>
+  <div id="comments-loading" class="comments-loading"><Tooltip text="If they don't load, likely because the sons of bitches of LaLiga are blocking the ip of the R2 bucket. You can use a VPN like 1.1.1.1 to bypass this.">Loading comments...</Tooltip></div>
   <div id="comments-error" class="comments-error" style="display: none;"></div>
   <div id="comments-empty" class="comments-empty" style="display: none;">No comments yet.</div>
   <div id="comments-list" class="comments-list" style="display: none;"></div>
@@ -263,9 +265,10 @@ const commentsUrl = `https://comments.miquelpuigturon.com${path}.json`;
     async function loadComments() {
       try {
         const fetchUrl = url;
-        const response = await fetch(fetchUrl);
+        const response = await fetch(fetchUrl, {signal: AbortSignal.timeout(5_000)});
         
         if (response.status === 404) {
+          console.log('404');
           section.style.display = 'none';
           
           const commentForm = document.getElementById('comment-form-container');
@@ -294,10 +297,14 @@ const commentsUrl = `https://comments.miquelpuigturon.com${path}.json`;
           empty.style.display = 'block';
         }
       } catch (err) {
-        console.error('Error loading comments:', err);
         loading.style.display = 'none';
         error.style.display = 'block';
-        error.textContent = 'Failed to load comments. Please try again later.';
+
+        if (err.name === 'TimeoutError') {
+          error.textContent = 'Unable to reach the comments R2 bucket. Likely because the sons of bitches of LaLiga are blocking the ip. You can use a VPN like 1.1.1.1 to bypass this.';
+        } else {
+          error.textContent = 'Failed to load comments. Please try again later.';
+        }
       }
     }
 

@@ -50,7 +50,7 @@ I cut down to 10 instances, and at peak times, workers were <Tooltip text="By sa
 
 <figure style="margin: 2rem 0; text-align: center;">
     <img
-        src="/work/temporal/worker-configuration/stats-by-prioQ.png"
+        src="/humanity/temporal/worker-configuration/stats-by-prioQ.png"
         alt="stats by prioQ"
         style="max-width: 50%;"
     />
@@ -67,7 +67,7 @@ Looking at metrics, many workflow tasks were failing due to `status_code=not_fou
 
 <figure style="margin: 2rem 0;">
     <img
-        src="/work/temporal/worker-configuration/failures-workflowtasklatency.png"
+        src="/humanity/temporal/worker-configuration/failures-workflowtasklatency.png"
         alt="workflow task failures and latency"
         style="max-width: 100%;"
     />
@@ -138,7 +138,7 @@ Looking at metrics for number of <Tooltip text="slots are tasks being executed c
 
 <figure style="margin: 2rem 0;">
     <img
-        src="/work/temporal/worker-configuration/failures-slots.png"
+        src="/humanity/temporal/worker-configuration/failures-slots.png"
         alt="workflow task failures and slots"
         style="max-width: 100%;"
     />
@@ -165,7 +165,7 @@ In all my tests, the tuner grants way too many workflow slots no matter what `ta
 
 <figure style="margin: 2rem 0;">
     <img
-        src="/work/temporal/worker-configuration/50+pollers-cpu.png"
+        src="/humanity/temporal/worker-configuration/50+pollers-cpu.png"
         alt="50+ slots CPU usage"
         style="max-width: 100%;"
     />
@@ -180,7 +180,7 @@ Running 2 vCPU instances, with the default configuration, the tuner was _slightl
 
 <figure style="margin: 2rem 0;">
     <img
-        src="/work/temporal/worker-configuration/tuner-2vcpu.png"
+        src="/humanity/temporal/worker-configuration/tuner-2vcpu.png"
         alt="2 vCPUs slots and task failures"
         style="max-width: 100%;"
     />
@@ -193,7 +193,7 @@ When configuring a fixed sized workflow task slot supplier, with 2 vCPUs and one
 
 <figure style="margin: 2rem 0;">
     <img
-        src="/work/temporal/worker-configuration/2vCPU-CPU.png"
+        src="/humanity/temporal/worker-configuration/2vCPU-CPU.png"
         alt="2 vCPUs CPU usage"
         style="max-width: 100%;"
     />
@@ -210,7 +210,7 @@ The most important thing is to use a fixed sized workflow task slot supplier, wi
 
 <figure style="margin: 2rem 0;">
     <img
-        src="/work/temporal/worker-configuration/failures-slots.png"
+        src="/humanity/temporal/worker-configuration/failures-slots.png"
         alt="workflow task failures and slots"
         style="max-width: 100%;"
     />
@@ -226,7 +226,7 @@ If no configuration is used (no tuner, no maxConcurrentWorkflowTaskExecutions), 
 Well, It's not that bad... \
 For parallel programming languages (like go and java, which are likely Temporal's target languages), it makes sense, as we want to reduce the percentage of I/O work, and there's no event loop or main thread that limits performance.
 
-I have explored more in detail the tuner, running on 2vCPU instances, and poller configuration, which you can read about in the [deep-dive](/work/temporal/worker-configuration/deep-dive) article.
+I have explored more in detail the tuner, running on 2vCPU instances, and poller configuration, which you can read about in the [deep-dive](/humanity/temporal/worker-configuration/deep-dive) article.
 
 ## A decent worker configuration
 
@@ -262,12 +262,12 @@ Activities are mostly processed instantly, and are very cheap, though they do si
 
 <figure style="margin: 2rem 0;">
     <img
-        src="/work/temporal/worker-configuration/saturated-wftask-latency.png"
+        src="/humanity/temporal/worker-configuration/saturated-wftask-latency.png"
         alt="workflow tasks latency"
         style="max-width: 100%;"
     />
     <img
-        src="/work/temporal/worker-configuration/saturated-wftasks-failures.png"
+        src="/humanity/temporal/worker-configuration/saturated-wftasks-failures.png"
         alt="workflow tasks failures"
         style="max-width: 100%;"
     />
@@ -293,4 +293,4 @@ Scaling should be done on average CPU usage across worker instances, and either 
 
 ## Further reading
 
-If you are interested in understanding the configuration and the details of the many experiments I have run, you can read the [deep-dive](/work/temporal/worker-configuration/deep-dive) article.
+If you are interested in understanding the configuration and the details of the many experiments I have run, you can read the [deep-dive](/humanity/temporal/worker-configuration/deep-dive) article.

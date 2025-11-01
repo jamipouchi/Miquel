@@ -3,7 +3,7 @@ import Tooltip from '../../../../../../components/Tooltip.astro'
 # Worker configuration (_Node_) > Deep dive
 
 This article is a deep dive into the worker configuration and the many experiments I have run to understand it. \
-It's intended for those who want to understand the internals of Worker configuration. If you're looking for a simpler setup or just want to know _why_ I ran these tests, start with the [main article](/work/temporal/worker-configuration).
+It's intended for those who want to understand the internals of Worker configuration. If you're looking for a simpler setup or just want to know _why_ I ran these tests, start with the [main article](/humanity/temporal/worker-configuration).
 
 This is not a definitive guide. Some parts remain unclear, but it documents what I've learned so far and where the documentation or defaults can be misleading.
 
@@ -36,12 +36,12 @@ In practice, I haven't been able to make it behave as expected. Here's what I fo
 
 <figure style="margin: 2rem 0;">
     <img
-        src="/work/temporal/worker-configuration/deep-dive/1vCPU-tuner-cpu-memory.png"
+        src="/humanity/temporal/worker-configuration/deep-dive/1vCPU-tuner-cpu-memory.png"
         alt="Tuner CPU and memory usage"
         style="max-width: 100%;"
     />
     <img
-        src="/work/temporal/worker-configuration/deep-dive/1vCPU-cloudwatch-cpu-memory.png"
+        src="/humanity/temporal/worker-configuration/deep-dive/1vCPU-cloudwatch-cpu-memory.png"
         alt="CloudWatch CPU and memory usage"
         style="max-width: 100%;"
     />
@@ -52,12 +52,12 @@ In practice, I haven't been able to make it behave as expected. Here's what I fo
 
 <figure style="margin: 2rem 0;">
     <img
-        src="/work/temporal/worker-configuration/deep-dive/2vCPU-tuner-cpu-memory.png"
+        src="/humanity/temporal/worker-configuration/deep-dive/2vCPU-tuner-cpu-memory.png"
         alt="Tuner CPU and memory usage"
         style="max-width: 100%;"
     />
     <img
-        src="/work/temporal/worker-configuration/deep-dive/2vCPU-cloudwatch-cpu-memory.png"
+        src="/humanity/temporal/worker-configuration/deep-dive/2vCPU-cloudwatch-cpu-memory.png"
         alt="CloudWatch CPU and memory usage"
         style="max-width: 100%;"
     />
@@ -72,7 +72,7 @@ It then also under-reports those, by giving a reading of around half of Node's.
 
 <figure style="margin: 2rem 0;">
     <img
-        src="/work/temporal/worker-configuration/deep-dive/tuner-cpu-matches-node-cpu.png"
+        src="/humanity/temporal/worker-configuration/deep-dive/tuner-cpu-matches-node-cpu.png"
         alt="Tuner CPU vs Node CPU"
         style="max-width: 100%;"
     />
@@ -85,7 +85,7 @@ It then also under-reports those, by giving a reading of around half of Node's.
 
 <figure style="margin: 2rem 0;">
     <img
-        src="/work/temporal/worker-configuration/deep-dive/tuner-vs-nodecpu-elu.png"
+        src="/humanity/temporal/worker-configuration/deep-dive/tuner-vs-nodecpu-elu.png"
         alt="Tuner CPU vs Node CPU - ELU"
         style="max-width: 100%;"
     />
@@ -98,7 +98,7 @@ _ELU_ ([event loop utilization](https://nodesource.com/blog/event-loop-utilizati
 
 ### Slot grants ignore task type cost
 
-The issue ties to the [Worker threading model](/work/temporal/worker-configuration#threading-model).
+The issue ties to the [Worker threading model](/humanity/temporal/worker-configuration#threading-model).
 
 It's NOT relevant in single-vCPU instances (where the main and worker threads share the same core) but becomes noticeable in multi-core setups.
 
@@ -149,22 +149,22 @@ It can be solved by increasing the `workflowThreadPoolSize` to match the number 
 
 <figure style="margin: 2rem 0;">
     <img
-        src="/work/temporal/worker-configuration/deep-dive/fixed-18-24-1-to-2-thread-worker-stats.png"
+        src="/humanity/temporal/worker-configuration/deep-dive/fixed-18-24-1-to-2-thread-worker-stats.png"
         alt="Worker stats"
         style="max-width: 100%; margin-bottom: 1rem;"
     />
     <img
-        src="/work/temporal/worker-configuration/deep-dive/fixed-18-24-1-to-2-thread-tuner-stats.png"
+        src="/humanity/temporal/worker-configuration/deep-dive/fixed-18-24-1-to-2-thread-tuner-stats.png"
         alt="Tuner stats"
         style="max-width: 100%; margin-bottom: 1rem;"
     />
     <img
-        src="/work/temporal/worker-configuration/deep-dive/fixed-18-24-1-to-2-thread-node-stats.png"
+        src="/humanity/temporal/worker-configuration/deep-dive/fixed-18-24-1-to-2-thread-node-stats.png"
         alt="Node stats"
         style="max-width: 100%; margin-bottom: 1rem;"
     />
     <img
-        src="/work/temporal/worker-configuration/deep-dive/fixed-18-24-1-to-2-thrad-cloudwatch-stats.png"
+        src="/humanity/temporal/worker-configuration/deep-dive/fixed-18-24-1-to-2-thrad-cloudwatch-stats.png"
         alt="CloudWatch stats"
         style="max-width: 100%;"
     />
@@ -195,7 +195,7 @@ An explanation could be not enough pollers. So I also tested:
 
 <figure style="margin: 2rem 0;">
     <img
-        src="/work/temporal/worker-configuration/deep-dive/activity-tuner-2cpu-8wftasks.png"
+        src="/humanity/temporal/worker-configuration/deep-dive/activity-tuner-2cpu-8wftasks.png"
         alt="Activity tuner with 8 workflow tasks"
         style="max-width: 100%;"
     />
@@ -206,7 +206,7 @@ An explanation could be not enough pollers. So I also tested:
 
 <figure style="margin: 2rem 0;">
     <img
-        src="/work/temporal/worker-configuration/deep-dive/activity-tuner-2cpu-12wftasks.png"
+        src="/humanity/temporal/worker-configuration/deep-dive/activity-tuner-2cpu-12wftasks.png"
         alt="Activity tuner with 12 workflow tasks"
         style="max-width: 100%;"
     />
@@ -217,7 +217,7 @@ An explanation could be not enough pollers. So I also tested:
 
 <figure style="margin: 2rem 0;">
     <img
-        src="/work/temporal/worker-configuration/deep-dive/activity-tuner-2cpu-6wftasks-40pollers.png"
+        src="/humanity/temporal/worker-configuration/deep-dive/activity-tuner-2cpu-6wftasks-40pollers.png"
         alt="Activity tuner with 6 workflow tasks and 40 pollers"
         style="max-width: 100%;"
     />
@@ -232,7 +232,7 @@ When using a fixed-size number of activity task slots, more task slots were in u
 
 <figure style="margin: 2rem 0;">
     <img
-        src="/work/temporal/worker-configuration/deep-dive/fixed-2cpu-8wf-24act.png"
+        src="/humanity/temporal/worker-configuration/deep-dive/fixed-2cpu-8wf-24act.png"
         alt="Fixed-size configuration with 2 CPU, 8 workflow tasks, and 24 activity tasks"
         style="max-width: 100%;"
     />
@@ -266,7 +266,7 @@ I have more graphs and data available for anyone interested.
 
 <figure style="margin: 2rem 0;">
     <img
-        src="/work/temporal/worker-configuration/deep-dive/folders.png"
+        src="/humanity/temporal/worker-configuration/deep-dive/folders.png"
         alt="Folder structure with additional data and images"
         style="max-width: 100%;"
     />
