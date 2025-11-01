@@ -1,0 +1,128 @@
+---
+import '../styles/global.css';
+import CommonHead from '../components/CommonHead.astro';
+---
+
+<html lang="en">
+  <head>
+    <CommonHead title="404 - Page Not Found" />
+  </head>
+  <body>
+    <article class="prose not-found">
+      <h1>404</h1>
+      <p class="subtitle">Page not found</p>
+      <p class="intro"><i>This could be because:</i></p>
+      <ul>
+        <li>You typed something wrong</li>
+        <li>I removed the page without adding a redirect</li>
+        <li>I haven't written the page yet, but told you about it</li>
+        <li>A quantum ray hit the server rewriting the request</li>
+      </ul>
+      <a href="/" class="home-link">← Back to home</a>
+    </article>
+
+    <style>
+      .prose.not-found {
+        text-align: center;
+        padding: 4rem 1.5rem;
+        min-height: 60vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .prose.not-found h1 {
+        font-size: 6rem;
+        margin-bottom: 0.5rem;
+        background: linear-gradient(135deg, #0066cc 0%, #0052a3 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        line-height: 1;
+      }
+
+      .subtitle {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #1a1a1a;
+        margin-bottom: 1rem !important;
+      }
+
+      .prose.not-found p {
+        color: #555;
+        font-size: 1.125rem;
+        max-width: 500px;
+        margin: 0.5rem auto;
+      }
+
+      .intro {
+        margin-top: 2rem !important;
+        margin-bottom: 0.5rem !important;
+      }
+
+      .prose.not-found ul {
+        list-style: none;
+        padding: 0;
+        margin: 0.5rem auto 1.5rem;
+        max-width: 500px;
+        text-align: left;
+      }
+
+      .prose.not-found li {
+        color: #555;
+        font-size: 1rem;
+        margin: 0.75rem 0;
+        padding-left: 1.5rem;
+        position: relative;
+      }
+
+      .prose.not-found li::before {
+        content: "→";
+        position: absolute;
+        left: 0;
+        color: #0066cc;
+        font-weight: 600;
+      }
+
+      .home-link {
+        display: inline-block;
+        margin-top: 2rem;
+        padding: 0.75rem 1.5rem;
+        background-color: transparent;
+        color: #0066cc !important;
+        text-decoration: none !important;
+        border: 2px solid #0066cc;
+        border-radius: 6px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+      }
+
+      .home-link:hover {
+        background-color: #0066cc;
+        color: white !important;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 102, 204, 0.25);
+      }
+
+      @media (max-width: 640px) {
+        .prose.not-found h1 {
+          font-size: 4rem;
+        }
+        
+        .subtitle {
+          font-size: 1.25rem;
+        }
+        
+        .prose.not-found p {
+          font-size: 1rem;
+        }
+
+        .prose.not-found li {
+          font-size: 0.95rem;
+        }
+      }
+    </style>
+  </body>
+</html>
+
