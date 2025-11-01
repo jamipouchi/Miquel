@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { encrypt } from './encrypt.js'
-import { sanitizeComment, insertCommentAtPath } from './commentUtils.js'
+import { sanitizeComment, insertCommentAtPath, type Comment_v1 } from './commentUtils.js'
 
 interface Env {
     personal_site: D1Database
@@ -52,10 +52,13 @@ app.post('/subscribe', async (c) => {
 
         try {
             await DB.batch([
-                DB.prepare(`INSERT INTO user (email) VALUES (?) ON CONFLICT(email) DO NOTHING`)
-                    .bind(encryptedEmail),
-                DB.prepare(`INSERT INTO subscription (user_email, slug) VALUES (?, ?)`)
-                    .bind(encryptedEmail, path)
+                DB.prepare(`INSERT INTO user (email) VALUES (?) ON CONFLICT(email) DO NOTHING`).bind(
+                    encryptedEmail
+                ),
+                DB.prepare(`INSERT INTO subscription (user_email, slug) VALUES (?, ?)`).bind(
+                    encryptedEmail,
+                    path
+                ),
             ])
         } catch (error: any) {
             // Handle duplicate subscription silently - don't reveal if already subscribed
@@ -206,14 +209,16 @@ Page path: ${path}
         for (let attempt = 0; attempt < maxRetries; attempt++) {
             try {
                 const existing = await c.env.COMMENTS_BUCKET.get(r2Key)
-                if (!existing) {
-                    return c.json({ error: 'Comments not available for this page' }, 404)
+
+                if (!existing && parentPath.length > 0) {
+                    return c.json({ error: 'Cannot reply to non-existent comment' }, 400)
                 }
 
-                const etag = existing.etag
-                const text = await existing.text()
-                const data = JSON.parse(text)
-                let comments: Array<any> = data.comments || []
+                let comments: Comment_v1[] = []
+                if (existing) {
+                    const data = await existing.json<{ comments: Comment_v1[] }>()
+                    comments = data.comments || []
+                }
 
                 const newComment = {
                     name: sanitized.name!,
@@ -228,18 +233,24 @@ Page path: ${path}
                     return c.json({ error: error.message || 'Invalid parent path' }, 400)
                 }
 
-                const updatedData = {
-                    comments,
-                }
-                await c.env.COMMENTS_BUCKET.put(r2Key, JSON.stringify(updatedData), {
+                const updatedData = { comments }
+
+                const putResult = await c.env.COMMENTS_BUCKET.put(r2Key, JSON.stringify(updatedData), {
                     httpMetadata: {
                         contentType: 'application/json',
                         cacheControl: 'no-cache',
                     },
-                    onlyIf: { etagMatches: etag },
+                    onlyIf: existing ? { etagMatches: existing.etag } : { etagDoesNotMatch: '*' },
                 })
 
-                return c.json(updatedData, 201)
+                if (!!putResult) {
+                    return c.json(updatedData, 201)
+                } else {
+                    if (attempt < maxRetries - 1) {
+                        continue
+                    }
+                    return c.json({ error: 'Failed to save comment due to conflicts. Please try again.' }, 409)
+                }
             } catch (error: any) {
                 if (error.message?.includes('412') || error.message?.includes('precondition')) {
                     if (attempt < maxRetries - 1) {

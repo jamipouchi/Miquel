@@ -268,14 +268,9 @@ const commentsUrl = `https://comments.miquelpuigturon.com${path}.json`;
         const response = await fetch(fetchUrl, {signal: AbortSignal.timeout(5_000)});
         
         if (response.status === 404) {
-          console.log('404');
-          section.style.display = 'none';
-          
-          const commentForm = document.getElementById('comment-form-container');
-          if (commentForm) {
-            commentForm.style.display = 'none';
-          }
-          
+          loading.style.display = 'none';
+          empty.style.display = 'block';
+          list.style.display = 'none';
           return;
         }
 

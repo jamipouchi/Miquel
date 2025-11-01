@@ -36,18 +36,18 @@ export function sanitizeComment(
     return { valid: true, name: safeName, message: safeMessage }
 }
 
-type Comment = {
+export type Comment_v1 = {
     name: string
     message: string
     created_at: string
-    comments: Comment[]
+    comments: Comment_v1[]
 }
 
 export function insertCommentAtPath(
-    comments: Comment[],
+    comments: Comment_v1[],
     parentPath: number[],
-    newComment: Comment
-): Comment[] {
+    newComment: Comment_v1
+): Comment_v1[] {
     if (parentPath.length === 0) {
         comments.push(newComment)
         return comments
