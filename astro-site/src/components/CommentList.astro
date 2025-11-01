@@ -334,7 +334,7 @@ const commentsUrl = `https://comments.miquelpuigturon.com${path}.json`;
                 <a class="reply-link" onclick="window.replyToComment(${JSON.stringify(currentPath)})">Reply</a>
               </div>
             </div>
-            <p class="comment-message">${escapeHtml(comment.message)}</p>
+            <p class="comment-message">${processMessageWithGifs(comment.message)}</p>
             <div class="reply-form-placeholder" data-path="${JSON.stringify(currentPath)}"></div>
             ${nestedComments}
           </div>
@@ -344,6 +344,14 @@ const commentsUrl = `https://comments.miquelpuigturon.com${path}.json`;
 
     function displayComments(comments) {
       list.innerHTML = renderComments(comments);
+
+      if (comments.length > 0) {
+        empty.style.display = 'none';
+        list.style.display = 'flex';
+      } else {
+        list.style.display = 'none';
+        empty.style.display = 'block';
+      }
     }
 
     function escapeHtml(text) {
@@ -356,6 +364,16 @@ const commentsUrl = `https://comments.miquelpuigturon.com${path}.json`;
       const div = document.createElement('div');
       div.textContent = decoded;
       return div.innerHTML;
+    }
+
+    function processMessageWithGifs(text) {
+      const escaped = escapeHtml(text);
+
+      const giphyPattern = /https:\/\/media[0-9]*\.giphy\.com\/media\/.+?\/giphy\.gif/;
+
+      return escaped.replace(giphyPattern, (match) => {
+        return `<img src="${match}" alt="GIF" class="comment-gif" loading="lazy" />`;
+      });
     }
 
     window.displayComments = displayComments;

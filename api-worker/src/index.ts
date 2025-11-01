@@ -99,6 +99,12 @@ app.post('/comments', async (c) => {
             return c.json({ error: sanitized.error }, 400)
         }
 
+        const giphyPattern = /https:\/\/media[0-9]*\.giphy\.com\/media\/.+?\/giphy\.gif/g
+        const giphyMatches = sanitized.message!.match(giphyPattern)
+        if (giphyMatches && giphyMatches.length > 1) {
+            return c.json({ error: 'Only one GIF per comment is allowed' }, 400)
+        }
+
         const clientIP = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || 'unknown'
 
         try {
@@ -136,6 +142,18 @@ Comments should be ALLOWED if they are:
 - Respectful personal opinions
 - Friendly and conversational
 
+If the comment contains a link, it should be ALLOWED if:
+  - It is a Giphy URL
+  - It is an educational or informative URL
+It should be REJECTED if:
+  - It is a promotional or spam URL
+  - It is a malicious or harmful URL
+  - It is a phishing or scam URL
+  - It is a malware or virus URL
+  - It is a spyware or adware URL
+  - It is a tracking or analytics URL
+  - Other URLs that are not educational or informative
+
 Be lenient with casual language and humor, but firm on the content policy violations listed above.`,
                 },
                 {
@@ -171,7 +189,8 @@ Page path: ${path}
             if (!response.allowed) {
                 return c.json(
                     {
-                        error: `Your comment was not approved: ${response.reason}. If you believe this is an error, please contact miquel@miquelpuigturon.com`,
+                        error: `Your comment was not approved: ${response.reason}
+                        If you believe this is an error, please contact miquel@miquelpuigturon.com`,
                     },
                     400
                 )

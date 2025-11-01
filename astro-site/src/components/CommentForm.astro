@@ -35,16 +35,14 @@ const baseUrl = import.meta.env.DEV ? 'http://localhost:8787' : 'https://api.miq
 
     <div class="form-group">
       <label for="comment-message" class="form-label">Message</label>
-      <textarea 
+      <div
         id="comment-message"
-        name="message" 
-        placeholder="Your comment..." 
-        required 
-        maxlength="500"
-        rows="4"
+        contenteditable="true"
+        data-placeholder="Your comment..."
         aria-label="Your comment"
         class="form-textarea"
-      ></textarea>
+        role="textbox"
+      ></div>
       <div class="char-counter">
         <span id="char-count">0</span> / 500
       </div>
@@ -181,6 +179,11 @@ const baseUrl = import.meta.env.DEV ? 'http://localhost:8787' : 'https://api.miq
     min-height: 100px;
   }
 
+  .form-textarea[contenteditable]:empty:before {
+    content: attr(data-placeholder);
+    color: #94a3b8;
+  }
+
   .char-counter {
     font-size: 0.8rem;
     color: #94a3b8;
@@ -304,7 +307,7 @@ const baseUrl = import.meta.env.DEV ? 'http://localhost:8787' : 'https://api.miq
       formTitle.textContent = 'Leave a Comment';
       parentPath = [];
       nameInput.value = '';
-      messageInput.value = '';
+      messageInput.innerHTML = '';
       charCount.textContent = '0';
     });
 
@@ -325,16 +328,84 @@ const baseUrl = import.meta.env.DEV ? 'http://localhost:8787' : 'https://api.miq
       }
     }
 
-    // Character counter
+    // Character counter and inline GIF replacement
+    let isProcessing = false;
+
     messageInput.addEventListener('input', () => {
-      charCount.textContent = messageInput.value.length;
+      if (isProcessing) return;
+
+      const text = messageInput.textContent || '';
+      charCount.textContent = text.length;
+
+      const existingGif = messageInput.querySelector('.comment-gif');
+
+      const giphyPattern = /https:\/\/media[0-9]*\.giphy\.com\/media\/[^\s]+\/giphy\.gif/g;
+      const match = giphyPattern.exec(text);
+
+      if (match && !existingGif) {
+        isProcessing = true;
+        const url = match[0];
+
+        // Get the text content and split around the URL
+        const beforeUrl = text.substring(0, match.index);
+        const afterUrl = text.substring(match.index + url.length);
+
+        // Create image element
+        const img = document.createElement('img');
+        img.src = url;
+        img.alt = 'GIF';
+        img.loading = 'lazy';
+        img.className = 'comment-gif';
+        img.setAttribute('data-gif-url', url);
+
+        // Clear and rebuild content
+        messageInput.innerHTML = '';
+
+        if (beforeUrl) {
+          messageInput.appendChild(document.createTextNode(beforeUrl));
+        }
+
+        messageInput.appendChild(img);
+
+        if (afterUrl) {
+          messageInput.appendChild(document.createTextNode(afterUrl));
+        }
+
+        // Restore cursor position after the image
+        const newRange = document.createRange();
+        const sel = window.getSelection();
+
+        if (afterUrl) {
+          const textNode = messageInput.childNodes[messageInput.childNodes.length - 1];
+          newRange.setStart(textNode, 0);
+          newRange.collapse(true);
+        } else {
+          newRange.selectNodeContents(messageInput);
+          newRange.collapse(false);
+        }
+
+        sel.removeAllRanges();
+        sel.addRange(newRange);
+
+        isProcessing = false;
+      }
     });
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       
       const name = nameInput.value.trim();
-      const message = messageInput.value.trim();
+      
+      // Extract message from contenteditable, converting images back to URLs
+      let message = '';
+      messageInput.childNodes.forEach(node => {
+        if (node.nodeType === Node.TEXT_NODE) {
+          message += node.textContent;
+        } else if (node.tagName === 'IMG') {
+          message += node.getAttribute('data-gif-url') || node.src;
+        }
+      });
+      message = message.trim();
       const path = form.dataset.path;
       const baseUrl = form.dataset.baseUrl;
 
@@ -365,13 +436,13 @@ const baseUrl = import.meta.env.DEV ? 'http://localhost:8787' : 'https://api.miq
         });
 
         const data = await res.json();
-        window.displayComments(data.comments);
 
         if (res.ok) {
+          window.displayComments(data.comments);
           showMessage('Comment posted successfully!', 'success');
 
           nameInput.value = '';
-          messageInput.value = '';
+          messageInput.innerHTML = '';
           charCount.textContent = '0';
           
           // Return form to original location
