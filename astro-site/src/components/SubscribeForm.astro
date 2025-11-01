@@ -5,6 +5,38 @@ interface Props {
 const { path } = Astro.props;
 
 const baseUrl = import.meta.env.DEV ? 'http://localhost:8787' : 'https://api.miquelpuigturon.com';
+
+// Generate path hierarchy options
+function generatePathOptions(fullPath: string): Array<{ value: string; label: string }> {
+  const segments = fullPath.split('/').filter(Boolean);
+  const options: Array<{ value: string; label: string }> = [
+    { value: '/', label: '/ (root - all updates)' }
+  ];
+
+  let currentPath = '';
+  for (const segment of segments) {
+    currentPath += '/' + segment;
+    options.push({ value: currentPath, label: currentPath });
+  }
+
+  return options;
+}
+
+// Determine default path based on current location
+function getDefaultPath(fullPath: string): string {
+  const segments = fullPath.split('/').filter(Boolean);
+
+  // If at root or first level, use current path
+  if (segments.length <= 1) {
+    return '/' + (segments[0] ?? '');
+  }
+  
+  // Otherwise, use second level
+  return '/' + segments.slice(0, 2).join('/');
+}
+
+const pathOptions = generatePathOptions(path);
+const defaultPath = getDefaultPath(path);
 ---
 
 <div class="subscribe-container">
@@ -21,11 +53,26 @@ const baseUrl = import.meta.env.DEV ? 'http://localhost:8787' : 'https://api.miq
     </button>
   </div>
   
-  <p class="subscribe-description">
-    Get notified for updates in <strong>{path}</strong> or any subpaths.
-  </p>
+  <div class="path-selector-container" data-default-path={defaultPath}>
+    <p class="subscribe-description">
+      Get notified for updates in <strong id="path-selector-trigger" class="path-trigger" role="button" tabindex="0" aria-label="Click to select path"><span id="selected-path-display">{defaultPath}</span><svg class="dropdown-icon" width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M6 8L2 4h8z"/></svg></strong> or any subpaths.
+    </p>
+
+    <div class="path-selector-dropdown" id="path-selector-dropdown" role="listbox" aria-label="Select path to subscribe to">
+      {pathOptions.map(option => (
+        <button
+          type="button"
+          class:list={['path-option', { selected: option.value === defaultPath }]}
+          data-path={option.value}
+          role="option"
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  </div>
   
-  <form id="subscribe-form" data-path={path} class="subscribe-form" method="post" data-base-url={baseUrl}>
+  <form id="subscribe-form" class="subscribe-form" method="post" data-base-url={baseUrl}>
     <input 
       type="email" 
       id="email-input"
@@ -137,17 +184,111 @@ const baseUrl = import.meta.env.DEV ? 'http://localhost:8787' : 'https://api.miq
     transform: scale(1.1);
   }
 
+  .path-selector-container {
+    position: relative;
+    margin-bottom: 1rem;
+  }
+
   .subscribe-description {
-    margin: 0 0 1rem 0;
+    margin: 0;
     font-size: 0.85rem;
     color: #666;
     line-height: 1.4;
   }
 
-  .subscribe-description strong {
+  .path-trigger {
     color: #0066cc;
     font-family: monospace;
     font-size: 0.9em;
+    cursor: pointer;
+    padding: 0.1rem 0.25rem;
+    border-radius: 3px;
+    transition: background-color 0.2s;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    user-select: none;
+  }
+
+  .path-trigger:hover {
+    background-color: rgba(0, 102, 204, 0.1);
+  }
+
+  .path-trigger:focus {
+    outline: 2px solid #0066cc;
+    outline-offset: 2px;
+    background-color: rgba(0, 102, 204, 0.1);
+  }
+
+  .dropdown-icon {
+    display: inline;
+    vertical-align: baseline;
+    margin-left: 0.2em;
+    transition: transform 0.2s;
+  }
+
+  .path-trigger.open .dropdown-icon {
+    transform: rotate(180deg);
+  }
+
+  .path-selector-dropdown {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    margin-top: 0.5rem;
+    background: white;
+    border: 1px solid #d0d0d0;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    max-height: 250px;
+    overflow-y: auto;
+    z-index: 100;
+  }
+
+  .path-selector-dropdown.show {
+    display: block;
+  }
+
+  .path-selector-dropdown.show-upward {
+    top: auto;
+    bottom: 100%;
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+  }
+
+  .path-option {
+    display: block;
+    width: 100%;
+    padding: 0.65rem 0.85rem;
+    text-align: left;
+    background: none;
+    border: none;
+    border-bottom: 1px solid #f0f0f0;
+    cursor: pointer;
+    font-family: monospace;
+    font-size: 0.85rem;
+    color: #333;
+    transition: background-color 0.15s;
+  }
+
+  .path-option:last-child {
+    border-bottom: none;
+  }
+
+  .path-option:hover {
+    background-color: #f5f5f5;
+  }
+
+  .path-option:focus {
+    outline: none;
+    background-color: rgba(0, 102, 204, 0.1);
+  }
+
+  .path-option.selected {
+    background-color: rgba(0, 102, 204, 0.15);
+    color: #0066cc;
+    font-weight: 600;
   }
 
   form {
@@ -419,13 +560,17 @@ const baseUrl = import.meta.env.DEV ? 'http://localhost:8787' : 'https://api.miq
     const emailInput = document.getElementById('email-input');
     const submitButton = document.getElementById('subscribe-button');
     const messageDiv = document.getElementById('subscribe-message');
+    const pathTrigger = document.getElementById('path-selector-trigger');
+    const pathDisplay = document.getElementById('selected-path-display');
+    const pathDropdown = document.getElementById('path-selector-dropdown');
+    const pathContainer = document.querySelector('.path-selector-container');
 
     const modal = document.getElementById('subscribe-modal');
     const helpButton = document.getElementById('help-button');
     const modalClose = document.getElementById('modal-close');
     const modalOverlay = document.getElementById('modal-overlay');
 
-    if (!form || !emailInput || !submitButton || !messageDiv || !modal || !helpButton || !modalClose || !modalOverlay) return;
+    if (!form || !emailInput || !submitButton || !messageDiv || !pathTrigger || !pathDisplay || !pathDropdown || !pathContainer || !modal || !helpButton || !modalClose || !modalOverlay) return;
 
     // Prevent reinitialization - check if already initialized
     if (form.dataset.initialized === 'true') return;
@@ -434,6 +579,97 @@ const baseUrl = import.meta.env.DEV ? 'http://localhost:8787' : 'https://api.miq
     // Ensure modal is hidden initially
     modal.classList.remove('show');
     modal.setAttribute('aria-hidden', 'true');
+
+    // Initialize with default path
+    let selectedPath = pathContainer.dataset.defaultPath || '';
+
+    // Enable/disable subscribe button based on path selection
+    function updateButtonState() {
+      const hasPath = selectedPath !== '';
+      submitButton.disabled = !hasPath;
+
+      if (!hasPath) {
+        submitButton.title = 'Please select a path first';
+      } else {
+        submitButton.title = '';
+      }
+    }
+
+    // Initialize button state
+    updateButtonState();
+
+    // Toggle dropdown
+    function toggleDropdown() {
+      const isOpen = pathDropdown.classList.contains('show');
+      if (isOpen) {
+        closeDropdown();
+      } else {
+        openDropdown();
+      }
+    }
+
+    function openDropdown() {
+      pathDropdown.classList.add('show');
+      pathDropdown.classList.add('show-upward');
+      pathTrigger.classList.add('open');
+    }
+
+    function closeDropdown() {
+      pathDropdown.classList.remove('show');
+      pathDropdown.classList.remove('show-upward');
+      pathTrigger.classList.remove('open');
+    }
+
+    // Handle path selection
+    function selectPath(path) {
+      selectedPath = path;
+      pathDisplay.textContent = path;
+
+      // Update selected state in dropdown
+      const allOptions = pathDropdown.querySelectorAll('.path-option');
+      allOptions.forEach(opt => {
+        if (opt.dataset.path === path) {
+          opt.classList.add('selected');
+        } else {
+          opt.classList.remove('selected');
+        }
+      });
+
+      updateButtonState();
+      closeDropdown();
+    }
+
+    // Event listeners
+    pathTrigger.addEventListener('click', toggleDropdown);
+
+    // Keyboard support for accessibility
+    pathTrigger.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        toggleDropdown();
+      }
+    });
+
+    pathDropdown.querySelectorAll('.path-option').forEach(option => {
+      option.addEventListener('click', () => {
+        selectPath(option.dataset.path);
+      });
+    });
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!pathTrigger.contains(e.target) && !pathDropdown.contains(e.target)) {
+        closeDropdown();
+      }
+    });
+
+    // Close dropdown on Escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && pathDropdown.classList.contains('show')) {
+        closeDropdown();
+        pathTrigger.focus();
+      }
+    });
 
     function showMessage(text, type) {
       messageDiv.textContent = text;
@@ -464,7 +700,7 @@ const baseUrl = import.meta.env.DEV ? 'http://localhost:8787' : 'https://api.miq
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const email = emailInput.value.trim();
-      const path = form.dataset.path;
+      const path = selectedPath;
       const baseUrl = form.dataset.baseUrl;
 
       if (!email) {
@@ -472,7 +708,14 @@ const baseUrl = import.meta.env.DEV ? 'http://localhost:8787' : 'https://api.miq
         return;
       }
 
+      if (!path) {
+        showMessage('Please select a path to subscribe to', 'error');
+        return;
+      }
+
       emailInput.disabled = true;
+      pathTrigger.style.pointerEvents = 'none';
+      pathTrigger.style.opacity = '0.6';
       submitButton.disabled = true;
       submitButton.textContent = 'Subscribing...';
 
@@ -494,7 +737,9 @@ const baseUrl = import.meta.env.DEV ? 'http://localhost:8787' : 'https://api.miq
         showMessage('An error occurred. Please try again later.', 'error');
       } finally {
         emailInput.disabled = false;
-        submitButton.disabled = false;
+        pathTrigger.style.pointerEvents = '';
+        pathTrigger.style.opacity = '';
+        updateButtonState();
         submitButton.textContent = 'Subscribe';
       }
     });
