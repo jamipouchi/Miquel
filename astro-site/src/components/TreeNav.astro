@@ -6,6 +6,12 @@ interface Props {
 }
 
 const { currentSlug } = Astro.props;
+
+// Don't render TreeNav for meta pages
+if (currentSlug.startsWith('meta')) {
+  return;
+}
+
 const allPages = await getCollection('pages');
 
 // Helper to get all unique folder paths from pages
@@ -16,7 +22,7 @@ function getAllFolderPaths(parentPath: string): string[] {
   const prefixLen = prefix.length;
   
   for (const page of allPages) {
-    if (page.slug === 'index' || page.slug === 'meta' || page.slug === 'chat-transcript') continue;
+    if (page.slug === 'index') continue;
     if (parentPath && !page.slug.startsWith(prefix)) continue;
     if (!parentPath && page.slug.includes('/') && page.slug.split('/')[0] === page.slug) continue;
     

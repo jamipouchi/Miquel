@@ -98,56 +98,6 @@ const commentsUrl = `https://comments.miquelpuigturon.com${path}.json`;
     letter-spacing: -0.01em;
   }
 
-  .verified-label {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    padding: 0.2rem 0.6rem;
-    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-    color: white;
-    font-size: 0.7rem;
-    font-weight: 700;
-    border-radius: 12px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    line-height: 1.3;
-    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.1) inset;
-    transition: all 0.2s ease;
-    cursor: help;
-  }
-
-  .verified-label::after {
-    content: attr(data-tooltip);
-    position: absolute;
-    bottom: calc(100% + 8px);
-    left: 50%;
-    transform: translateX(-50%) scale(0.9);
-    background: #333;
-    color: white;
-    padding: 0.5rem 0.75rem;
-    border-radius: 6px;
-    white-space: nowrap;
-    font-size: 0.85rem;
-    font-weight: 500;
-    text-transform: none;
-    letter-spacing: normal;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.2s ease, transform 0.2s ease;
-    z-index: 1000;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  }
-
-  .verified-label:hover::after {
-    opacity: 1;
-    transform: translateX(-50%) scale(1);
-  }
-
-  .comment:hover .verified-label {
-    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.15) inset;
-    transform: translateY(-1px);
-  }
-
   .comment-meta {
     display: flex;
     align-items: center;
@@ -228,11 +178,6 @@ const commentsUrl = `https://comments.miquelpuigturon.com${path}.json`;
       flex-direction: column;
       align-items: flex-start;
       gap: 0.4rem;
-    }
-
-    .verified-label {
-      font-size: 0.65rem;
-      padding: 0.15rem 0.5rem;
     }
 
     .comment-meta {
@@ -319,16 +264,11 @@ const commentsUrl = `https://comments.miquelpuigturon.com${path}.json`;
           ? `<div class="nested-comments">${renderComments(comment.comments, currentPath)}</div>`
           : '';
 
-        const verifiedLabel = comment.verifiedLabel
-          ? `<span class="verified-label" data-tooltip="This commenter has been verified">${escapeHtml(comment.verifiedLabel)}</span>`
-          : '';
-
         return `
           <div class="comment" data-comment-path="${JSON.stringify(currentPath)}">
             <div class="comment-header">
               <div class="comment-name-wrapper">
                 <span class="comment-name">${escapeHtml(comment.name)}</span>
-                ${verifiedLabel}
               </div>
               <div class="comment-meta">
                 <span class="comment-date">${formattedDate}</span>
