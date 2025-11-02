@@ -85,7 +85,7 @@ astro-site/
 ### Footer.astro
 
 The footer is where all page-level features live:
-- **TreeNav**: Context-aware navigation (hidden on meta pages)
+- **TreeNav**: Context-aware navigation (renders on all pages, including meta pages with special styling)
 - **SubscribeForm**: Path-based email subscriptions
 - **Comments**: CommentList + CommentForm (can be skipped via `skipComments` prop)
 
@@ -104,7 +104,10 @@ Props: `currentSlug`, `path`, `skipComments?`
 - Branch pages (with children): Capitalized
 - Leaf pages (no children): lowercase with spaces (replaces hyphens)
 
-**Special behavior**: Returns early (renders nothing) if `currentSlug.startsWith('meta')`.
+**Special behavior for meta pages**:
+- When on meta pages, TreeNav renders but only shows meta-related siblings (no cross-contamination with other top-level sections)
+- Uses purple color scheme (#7c3aed) instead of the standard blue (#0066cc) to visually indicate the special meta section
+- Helps isolate meta content from main site navigation while maintaining consistent navigation UX
 
 ### TableOfContents.astro
 
@@ -119,6 +122,9 @@ Fixed position sidebar (left side on large screens, hidden < 1450px).
 **CommentList.astro**: Fetches from R2 bucket (`https://comments.miquelpuigturon.com{path}.json`)
 - Nested/threaded comments
 - GIF support (auto-detects image URLs)
+- No loading state: starts with "No comments yet." to prevent layout shifts
+- Smooth fade-in animation when comments load
+- Graceful error handling with timeout detection
 
 **CommentForm.astro**: Posts to API worker (`https://api.miquelpuigturon.com/comments`)
 - Rich text with GIF paste support
@@ -234,7 +240,8 @@ npm run dev      # Start dev server (localhost:4321)
 
 ### Meta pages (`/meta/*`)
 
-- TreeNav automatically hidden
+- TreeNav renders with special purple styling to indicate the meta section
+- Navigation is isolated: only shows meta siblings, not other top-level pages
 - Otherwise treated like normal content pages
 
 ### 404
@@ -261,11 +268,11 @@ Static site generated to `dist/`:
 
 1. **Don't overcomplicate**: If you're adding config, you're probably doing it wrong
 2. **Respect the hierarchy**: Folder structure drives everything
-3. **Markdown first**: Only use Astro/React when markdown isn't enough
-4. **Keep it unified**: All content pages should look/behave the same (except home)
-5. **No dark mode**: Don't add theme switching, it's intentional
-6. **Global styles**: Prefer extending `global.css` over component styles
-7. **Test the build**: `npm run build` must pass before deploying
+3. **Keep it unified**: All content pages should look/behave the same (except home)
+4. **No dark mode**: Don't add theme switching, it's intentional
+5. **Global styles**: Prefer extending `global.css` over component styles
+6. **Avoid layout shifts**: Everything loads fast, avoid loading states that cause layout shifts
+6. **Test the build**: `npm run build` must pass before deploying
 
 ## Summary
 

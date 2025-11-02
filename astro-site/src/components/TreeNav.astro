@@ -7,12 +7,10 @@ interface Props {
 
 const { currentSlug } = Astro.props;
 
-// Don't render TreeNav for meta pages
-if (currentSlug.startsWith('meta')) {
-  return;
-}
-
 const allPages = await getCollection('pages');
+
+// Check if we're on a meta page
+const isMetaPage = currentSlug.startsWith('meta');
 
 // Helper to get all unique folder paths from pages
 function getAllFolderPaths(parentPath: string): string[] {
@@ -59,7 +57,7 @@ function buildTreeNodes() {
   });
   
   if (isCurrentRoot) {
-    // At root: show all top-level pages as siblings
+    // At root: show all top-level pages as siblings (excluding meta)
     const topLevelNames = getAllFolderPaths('').filter(name => !name.includes('meta'));
     for (const name of topLevelNames) {
       const topPage = allPages.find(p => p.slug === name);
@@ -80,7 +78,24 @@ function buildTreeNodes() {
       
       if (isCurrentLevel) {
         // At current level: show siblings with current, and nest children under current
-        const siblingNames = getAllFolderPaths(parentPath || '').filter(name => !name.includes('meta'));
+        let siblingNames = getAllFolderPaths(parentPath || '');
+        // Only filter meta at the top level (when parentPath is empty)
+        if (!parentPath) {
+          if (isMetaPage) {
+            siblingNames = siblingNames.filter(name => name.startsWith('meta'));
+          } else {
+            siblingNames = siblingNames.filter(name => !name.startsWith('meta'));
+          }
+        }
+
+        // Move the current item to the end for better visual hierarchy
+        const currentName = currentParts[i];
+        const currentIndex = siblingNames.indexOf(currentName);
+        if (currentIndex > -1) {
+          siblingNames.splice(currentIndex, 1);
+          siblingNames.push(currentName);
+        }
+
         const childNames = getAllFolderPaths(currentSlug);
         
         for (const name of siblingNames) {
@@ -153,7 +168,7 @@ const renderedNodes = treeNodes.map(node => {
 });
 ---
 
-<nav class="tree-nav">
+<nav class="tree-nav" class:list={{ 'meta-nav': isMetaPage }}>
   <ul class="tree-list">
     {renderedNodes.map((node) => (
       <li 
@@ -162,7 +177,7 @@ const renderedNodes = treeNodes.map(node => {
           { 'current': node.isCurrent },
           { 'ancestor': node.isAncestor }
         ]}
-        style={`--indent: ${node.level}`}
+        style={`--indent: ${node.level}; view-transition-name: nav-${node.slug.replace(/\//g, '-')};`}
       >
         <a href={node.url}>{node.name}</a>
       </li>
@@ -187,6 +202,7 @@ const renderedNodes = treeNodes.map(node => {
     margin: 0;
     padding: 0.35rem 0;
     padding-left: calc(var(--indent) * 1.5rem);
+    transition: all 0.3s ease;
   }
 
   .tree-item a {
@@ -207,6 +223,25 @@ const renderedNodes = treeNodes.map(node => {
 
   .tree-item.ancestor a {
     color: #333;
+    font-weight: 500;
+  }
+
+  /* Special styling for meta pages */
+  .tree-nav.meta-nav .tree-item a {
+    color: #7c3aed;  /* Purple for meta pages */
+  }
+
+  .tree-nav.meta-nav .tree-item a:hover {
+    color: #6d28d9;  /* Darker purple on hover */
+  }
+
+  .tree-nav.meta-nav .tree-item.current a {
+    color: #6d28d9;
+    font-weight: 600;
+  }
+
+  .tree-nav.meta-nav .tree-item.ancestor a {
+    color: #8b5cf6;
     font-weight: 500;
   }
 </style>

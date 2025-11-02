@@ -43,13 +43,15 @@ Three route files handle all pages:
 
 - `index.astro` - Home page with custom layout (`/`)
 - `[...slug].astro` - All content pages with unified layout (including this meta page!)
-- `404.astro` - Handle missing pages
+- `404.astro` - Missing pages
 
 ## Design Choices
 
 **No dark mode**: We are professionals, not guys coding under the covers of their bed.
 
 **Hierarchy**: Visual hierarchy matches content hierarchy — home is special, branches organize, leaves contain
+
+**Static**: Everything is served statically. Comments too.
 
 ## Source
 

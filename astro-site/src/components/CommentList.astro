@@ -12,9 +12,8 @@ const commentsUrl = `https://comments.miquelpuigturon.com${path}.json`;
 <div class="comments-section" id="comments-section" data-path={path} data-url={commentsUrl}>
   <div class="comments-separator"></div>
   <h3 class="comments-title">Comments</h3>
-  <div id="comments-loading" class="comments-loading"><Tooltip text="If they don't load, likely because the sons of bitches of LaLiga are blocking the ip of the R2 bucket. You can use a VPN like 1.1.1.1 to bypass this.">Loading comments...</Tooltip></div>
   <div id="comments-error" class="comments-error" style="display: none;"></div>
-  <div id="comments-empty" class="comments-empty" style="display: none;">No comments yet.</div>
+  <div id="comments-empty" class="comments-empty">No comments yet.</div>
   <div id="comments-list" class="comments-list" style="display: none;"></div>
 </div>
 
@@ -38,13 +37,6 @@ const commentsUrl = `https://comments.miquelpuigturon.com${path}.json`;
     letter-spacing: -0.02em;
   }
 
-  .comments-loading {
-    color: #666;
-    font-size: 0.9rem;
-    padding: 1rem;
-    text-align: center;
-  }
-
   .comments-error {
     background-color: #f8d7da;
     color: #721c24;
@@ -59,6 +51,16 @@ const commentsUrl = `https://comments.miquelpuigturon.com${path}.json`;
     display: flex;
     flex-direction: column;
     gap: 0.85rem;
+    animation: fadeIn 0.3s ease-in;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
   }
 
   .comment {
@@ -202,7 +204,6 @@ const commentsUrl = `https://comments.miquelpuigturon.com${path}.json`;
     section.dataset.initialized = 'true';
 
     const url = section.dataset.url;
-    const loading = document.getElementById('comments-loading');
     const error = document.getElementById('comments-error');
     const empty = document.getElementById('comments-empty');
     const list = document.getElementById('comments-list');
@@ -213,7 +214,7 @@ const commentsUrl = `https://comments.miquelpuigturon.com${path}.json`;
         const response = await fetch(fetchUrl, {signal: AbortSignal.timeout(5_000)});
         
         if (response.status === 404) {
-          loading.style.display = 'none';
+          // Keep "No comments yet." visible
           empty.style.display = 'block';
           list.style.display = 'none';
           return;
@@ -226,7 +227,6 @@ const commentsUrl = `https://comments.miquelpuigturon.com${path}.json`;
         const data = await response.json();
         const comments = data.comments || [];
 
-        loading.style.display = 'none';
         empty.style.display = 'none';
         list.style.display = 'none';
 
@@ -237,8 +237,8 @@ const commentsUrl = `https://comments.miquelpuigturon.com${path}.json`;
           empty.style.display = 'block';
         }
       } catch (err) {
-        loading.style.display = 'none';
         error.style.display = 'block';
+        empty.style.display = 'none';
 
         if (err.name === 'TimeoutError') {
           error.textContent = 'Unable to reach the comments R2 bucket. Likely because the sons of bitches of LaLiga are blocking the ip. You can use a VPN like 1.1.1.1 to bypass this.';
