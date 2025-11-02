@@ -1,6 +1,8 @@
-# Work
+# Humanity
 
-Reflections on building software, managing teams, and navigating the world of technology.
+Tangible things that might aid other people. Possibly unbeknownst to me.
 
-Work is where theory meets practice. These are lessons learned from shipping products, debugging systems, and collaborating with talented people.
+I strive to have a positive effect on humanity.
 
+Short term, it will likely be outcomes of my work. \
+Long term, it might document project(s) that I build.

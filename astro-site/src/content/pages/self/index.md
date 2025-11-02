@@ -1,6 +1,8 @@
-# Health
+# Self
 
-Thoughts about physical and mental health — how I train, recover, and find balance.
+Beliefs around how I live my life.
 
-Health isn't just about exercise or diet. It's about building sustainable habits that support both body and mind over the long term.
+Or maybe attempts at explaining why.
 
+I will write about the things that are most unique to me. \
+It is not intended to be a guide to follow, but as a description to understand.

@@ -2,7 +2,7 @@
 
 This is my personal site — a collection of thoughts, ideas, and reflections organized by topic.
 
-TODO: WHY, WHAT
+TODO @Miquel -> WHY, WHAT
 
 See how [this page](/meta) was built.
 

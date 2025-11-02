@@ -1,4 +1,4 @@
 # Temporal
 
-Thoughts and experiences working with Temporal workflow engine.
+Useful (miss/un)documented articles for working with [Temporal](https://temporal.io/).
 

@@ -16,7 +16,7 @@ const { currentSlug, path, skipComments } = Astro.props;
 {!skipComments && (
   <div class="comments-section">
     <CommentList path={path} />
-      <CommentForm path={path} />
+    <CommentForm path={path} />
     </div>
   )}
 
@@ -31,6 +31,8 @@ const { currentSlug, path, skipComments } = Astro.props;
     </div>
   </div>
 </footer>
+
+
 
 <style>
   .comments-section {
