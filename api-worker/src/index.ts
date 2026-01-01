@@ -3,15 +3,6 @@ import { cors } from 'hono/cors'
 import { encrypt } from './encrypt.js'
 import { sanitizeComment, insertCommentAtPath, type Comment_v1 } from './commentUtils.js'
 
-interface Env {
-    personal_site: D1Database
-    COMMENTS_BUCKET: R2Bucket
-    AI: Ai
-    RATE_LIMITER: RateLimit
-    DEV: boolean
-    ENCRYPTION_KEY: string
-}
-
 const app = new Hono<{ Bindings: Env }>()
 
 app.use(
