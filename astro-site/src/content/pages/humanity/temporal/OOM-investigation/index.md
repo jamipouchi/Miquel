@@ -12,7 +12,7 @@ We run a Temporal TypeScript worker that manages long-running conversation workf
 - `reuseV8Context: true` (default)
 - `--max-old-space-size=3072`
 
-This configuration had been stable for months. It is explained [here](../worker-configuration).
+This configuration had been stable for months. It is explained in [worker configuration](../worker-configuration).
 
 ## The Problem
 
@@ -132,7 +132,7 @@ The `workerStatus` was key - it gives `numCachedWorkflows`, which let us correla
 
 ### First Diagnostic Results (12 workflow task slots)
 
-| Cached WFs | Heap (MB) | RSS (MB) | Native (MB) | RSS +/10s (MB) |
+| Cached WFs | Heap (MB) | RSS (MB) | Native (MB) | Delta/10s (MB) |
 |:----------:|:---------:|:--------:|:-----------:|:--------------:|
 | ~20        | 280       | 1,389    | ~1,100      | —              |
 | ~80        | 300       | 2,950    | ~2,650      | +780           |
@@ -154,7 +154,7 @@ Maybe 12 concurrent workflow slots created too many V8 isolates at once.
 **Test:** Reduced `workflowTaskSlotSupplier.numSlots` from 12 to 6.
 **Result:**
 
-| Cached WFs | Heap (MB) | RSS (MB) | Native (MB) | RSS +/10s (MB) |
+| Cached WFs | Heap (MB) | RSS (MB) | Native (MB) | Delta/10s (MB) |
 |:----------:|:---------:|:--------:|:-----------:|:--------------:|
 | 61         | 247       | 1,597    | 1,320       | +434           |
 | 111        | 230       | 2,176    | 1,922       | +579           |
@@ -180,7 +180,9 @@ This told us the problem was specific to what's inside the conversation workflow
 
 With the per-workflow cost established at ~12 MB and the enrich service working fine, we turned to the workflow bundle itself.
 
-Temporal workflow code doesn't run directly from your source files. Instead, the Temporal TypeScript SDK uses webpack to produce a self-contained `workflow-bundle.js` (or you can generate it at build time like we do). This bundle is what gets loaded into V8 worker thread isolates. The reason for this separate bundling step is determinism: the SDK needs to control the execution environment inside the isolate, patching non-deterministic APIs like `Date()` and `Math.random()` with deterministic replacements so that workflow replay produces identical results. Activities run on the main thread and can import anything normally, but workflow code can only access what's in the bundle.
+Temporal workflow code doesn't run directly from your source files. Instead, the Temporal TypeScript SDK uses webpack to produce a self-contained `workflow-bundle.js` (or you can generate it at build time like we do). This bundle is what gets loaded into V8 worker thread isolates.
+
+The reason for this separate bundling step is determinism: the SDK needs to control the execution environment inside the isolate, patching non-deterministic APIs like `Date()` and `Math.random()` with deterministic replacements so that workflow replay produces identical results. Activities run on the main thread and can import anything normally, but workflow code can only access what's in the bundle.
 
 This means whatever ends up in the bundle gets loaded into every V8 worker context. And anything that shouldn't be there - that wasn't there before - directly inflates per-workflow memory cost.
 
@@ -244,7 +246,7 @@ This tells webpack: "every module in this package is pure - if you don't use an 
 
 ### After the Fix (Runtime)
 
-| Cached WFs | Heap (MB) | RSS (MB) | Native (MB) | RSS +/10s (MB) |
+| Cached WFs | Heap (MB) | RSS (MB) | Native (MB) | Delta/10s (MB) |
 |:----------:|:---------:|:--------:|:-----------:|:--------------:|
 | 0          | 195       | 501      | 285         | —              |
 | 4          | 192       | 535      | 322         | +34            |
