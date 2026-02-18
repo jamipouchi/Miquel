@@ -68,7 +68,7 @@ _I started [tracking my workouts](https://workout-tracker.miquelpuigturon.com/)_
 If you don't choose a direction, you will end up living under someone else's dreams.
 
 For most of my life, I’ve been guided by what I didn’t want to do.\
-That’s inefficient. There are infinite options to reject, but only one to choose.
+That’s inefficient. There are an infinite number of options to reject, but only one to choose.
 
 My lifetime goals are:
 
