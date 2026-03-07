@@ -271,3 +271,7 @@ The base RSS dropped from ~1,200 MB to ~500 MB - the gpt-tokenizer tables were c
 5. **Inspect built artifacts, not only source.** The bug was invisible in the source code - no workflow imports `gpt-tokenizer`. Only by grepping the built `workflow-bundle.js` did we find the 12 MB of dead weight. When memory regressions appear after a deploy, validate what actually lands in the bundle.
 
 6. **The investigation loop works.** Every phase followed the same pattern: form a hypothesis based on available data, design a minimal test, deploy, observe. Most hypotheses were wrong. That's fine - each one narrowed the search space.
+
+## Further reading
+
+After fixing the conversation worker, I investigated the same class of problem in our enrich service. That one had no single-line fix - it turned into a bundle experiment log. You can read about it in the [enrich deep dive](/humanity/temporal/OOM-investigation/deep-dive).
