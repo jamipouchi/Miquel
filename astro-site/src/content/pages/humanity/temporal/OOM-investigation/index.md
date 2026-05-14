@@ -274,4 +274,4 @@ The base RSS dropped from ~1,200 MB to ~500 MB - the gpt-tokenizer tables were c
 
 ## Further reading
 
-After fixing the conversation worker, I investigated the same class of problem in our enrich service. That one had no single-line fix - it turned into a bundle experiment log. You can read about it in the [enrich deep dive](/humanity/temporal/OOM-investigation/deep-dive).
+After fixing the conversation worker, I investigated the same class of problem in our enrich service. That one had no single-line fix - it turned into a bundle experiment log. You can read about it in the [enrich deep dive](/humanity/temporal/oom-investigation/deep-dive).
