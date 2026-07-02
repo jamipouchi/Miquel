@@ -1,6 +1,6 @@
 # Tres mesos intentant construir software per a farmàcies
 
-Hem entrevistat unes 70 farmàcies, hem instal·lat el producte a 12 i hem acabat concloent que el model de negoci en què crèiem no funciona.
+Hem entrevistat unes 70 farmàcies, hem instal·lat el producte a 12 i hem acabat concloent que el model de negoci en que crèiem no funciona.
 
 ## Per què farmàcia
 
@@ -30,7 +30,7 @@ Quan vam començar, pensàvem que el problema era que el farmacèutic no tenia e
 
 Vam començar pels processos que semblaven més evidents: gestió de stock, substitució de genèrics, cross-selling i fidelització de pacients. Parlant amb farmàcies, en vam descobrir d'altres: les tasques entre treballadors i els horaris es portaven al paper, i hi vam veure l'oportunitat de fer-ho millor.
 
-Totes aquestes funcionalitats aportaven valor, però cap formava part del dia a dia. Es consultaven de tant en tant, quan hi havia un dubte concret, però no generaven un hàbit.
+Totes aquestes funcionalitats aporten valor, però cap forma part del dia a dia. Es consultaven de tant en tant, quan hi havia un dubte concret, però no han generat cap hàbit.
 
 Ho vam confirmar amb els primers resultats: tenim un Sheets on trackejem les farmàcies contactades, n'hem parlat amb unes 70, i de 12 instal·lades amb seguiment personalitzat, només 4 l'usen a diari, 5 setmanalment i 3 no l'usen. Cap explota Orkava com imaginàvem que es faria.
 
