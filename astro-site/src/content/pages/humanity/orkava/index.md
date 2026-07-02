@@ -26,33 +26,23 @@ El farmacèutic té poc temps i ha de fer mil coses, i sovint no té els process
 
 ## Què hem après
 
-Quan vam començar, pensàvem que el problema era que el farmacèutic no tenia eines prou bones per analitzar la farmàcia. La idea era construir una capa d'intel·ligència sobre l'ERP que ajudés a prendre millors decisions.
+Quan vam començar, pensàvem que el farmacèutic necessitava una capa d'intel·ligència sobre l'ERP per prendre millors decisions.
 
-Vam començar pels processos que semblaven més evidents: gestió de stock, substitució de genèrics, cross-selling i fidelització de pacients. Parlant amb farmàcies, en vam descobrir d'altres: les tasques entre treballadors i els horaris es portaven al paper, i hi vam veure l'oportunitat de fer-ho millor.
+Vam atacar els processos més evidents: gestió de stock, substitució de genèrics, cross-selling, fidelització de pacients, tasques internes i horaris. Totes aquestes funcionalitats aporten valor, però cap forma part del dia a dia. Es consulten quan hi ha un dubte concret, però no generen hàbit.
 
-Totes aquestes funcionalitats aporten valor, però cap forma part del dia a dia. Es consultaven de tant en tant, quan hi havia un dubte concret, però no han generat cap hàbit.
+Ho vam confirmar amb els primers resultats: hem parlat amb unes 70 farmàcies i n'hem instal·lat 12 amb seguiment personalitzat. D'aquestes, només 4 l'usen a diari, 5 setmanalment i 3 no l'usen. Cap explota Orkava com imaginàvem.
 
-Ho vam confirmar amb els primers resultats: tenim un Sheets on trackejem les farmàcies contactades, n'hem parlat amb unes 70, i de 12 instal·lades amb seguiment personalitzat, només 4 l'usen a diari, 5 setmanalment i 3 no l'usen. Cap explota Orkava com imaginàvem que es faria.
+Vam intentar reduir la fricció posant-ho tot dins d'un xat. Ha estat útil per a preguntes concretes, com analitzar una marca o entendre una baixada de marge, però no ha creat pull. El farmacèutic només obre el xat quan ja té una pregunta, i això passa poc.
 
-Ja des del principi ens va quedar clar que no genera interès: tothom vol millorar i estalviar temps, però hi ha una resistència gran a incorporar eines noves. No hi havia necessitat; estàvem creant el mercat.
+Després vam fer Orkava més proactiu amb notificacions sobre impagats, stock parat, caducitats o altres incidències. Tampoc va funcionar: moltes alertes no porten a una acció clara i és difícil demostrar valor sense mesurar si l'acció s'ha fet ni quin impacte ha tingut.
 
-Per això vam decidir que totes les funcionalitats fossin accessibles des d'un xat, com si fos ChatGPT. Pensàvem que així desapareixeria la fricció d'haver d'aprendre una interfície nova.
+El mòdul de màrqueting va seguir el mateix patró. Les farmàcies que ja feien màrqueting el van aprofitar i no volien cambiar; les que no, no van crear nous processos.
 
-Hi ha algun usuari que l'ha fet servir força: per analitzar l'evolució d'una marca, entendre per què ha baixat el marge o buscar informació concreta. Però, en general, el patró ha estat el mateix. El xat és útil quan el farmacèutic ja té una pregunta, però això passa poques vegades. No hem trobat un cas d'ús que faci obrir l'eina cada dia.
+La següent hipòtesi va ser que estàvem fora del flux de treball. Si volíem formar part del dia a dia, havíem d'estar presents en el moment de la venda. Integrar-nos amb l'ERP va ser molt més difícil del que esperàvem, però ho vam aconseguir per altres vies :).
 
-També vam intentar que Orkava fos més proactiu. Notificacions sobre impagats, stock parat, caducitats o altres incidències que requerissin atenció. El resultat tampoc va ser bo. El farmacèutic acostuma a saber què passa a la farmàcia i, encara que la notificació sigui correcta, moltes vegades no hi ha una acció clara per prendre. Sense poder mesurar si l'acció s'ha fet ni quin impacte ha tingut, és difícil demostrar valor.
+El resultat tampoc va ser suficient. Els popups semblen útils al principi, però ràpidament es converteixen en una cosa més a la pantalla. Les recomanacions centrades en el pacient i el seu historial aporten més valor que els suggeriments típics de producte, però no vam veure prou evidència que poguessin convertir-se en una part indispensable de la venda.
 
-Després vam provar d'afegir un mòdul de màrqueting amb promocions i enviament de missatges. Les farmàcies que ja feien màrqueting el van aprofitar. Les que no, tampoc no van canviar els seus processos per fer-ho.
-
-La següent hipòtesi va ser que el problema no era el producte, sinó que estàvem fora del flux de treball. Si volíem formar part del dia a dia, havíem d'estar presents en el moment de la venda.
-
-Integrar-nos amb l'ERP va ser molt més difícil del que esperàvem. Els fabricants cobren desenes de milers d'euros per donar accés a la integració, així que vam acabar fent-la igualment per altres vies :).
-
-El resultat tampoc va ser el que esperàvem. Els popups semblaven útils, però ràpidament es converteixen en una cosa més a la pantalla. Vam provar d'anar més enllà dels típics suggeriments de productes i generar recomanacions centrades en el pacient i el seu historial, que aportaven més valor. Tot i així, no vam arribar a veure prou evidència que poguessin convertir-se en una part indispensable de la venda, especialment veient que les solucions existents acaben sent ignorades per moltes farmàcies.
-
-Després de dos mesos dedicats exclusivament a iterar sobre el producte, la conclusió és que no hem aconseguit entrar en cap workflow indispensable del farmacèutic. I, més important encara, no hem trobat un camí clar per aconseguir-ho.
-
-Hem construït una capa d'intel·ligència per a la farmàcia, però depèn que el farmacèutic decideixi consultar-la. I aquest és precisament el problema: si el producte no forma part d'un procés obligatori, acaba sent una eina que sembla útil, però que cada vegada s'utilitza menys.
+La conclusió és que no hem aconseguit entrar en cap workflow indispensable del farmacèutic. Hem construït una capa d'intel·ligència per a la farmàcia, però depèn que el farmacèutic decideixi consultar-la. I aquest és precisament el problema: si el producte no forma part d'un procés obligatori, acaba sent una eina que sembla útil, però que cada vegada s'utilitza menys.
 
 ## Els competidors
 
