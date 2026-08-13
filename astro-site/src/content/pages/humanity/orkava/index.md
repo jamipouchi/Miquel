@@ -1,5 +1,9 @@
 # Tres mesos intentant construir software per a farmàcies
 
+<aside class="callout">
+Des de que vaig escriure aquest article, ha cambiat la situació. Orkava ha pivotat lleguerament, i tira endavant. Deixo l'article fins que el reescrigui.
+</aside>
+
 Hem entrevistat unes 70 farmàcies, hem instal·lat el producte a 12 i hem acabat concloent que el model de negoci en que crèiem no funciona.
 
 ## Per què farmàcia
