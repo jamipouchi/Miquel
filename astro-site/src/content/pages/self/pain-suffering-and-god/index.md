@@ -2,7 +2,7 @@
 
 I always knew I wanted to build something mine.
 
-I did not expect the amount of pain and suffering that would come with taking the leap of faith.\
+I did not expect the amount of pain and suffering that would come with taking the leap of faith.
 
 I now believe that pain and suffering are warranted.\
 And that success is a gift from God.
