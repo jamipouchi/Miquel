@@ -1,0 +1,4 @@
+# Secrets
+.env.local
+.env
+.dev.vars
