@@ -1,6 +1,8 @@
 ---
 import '../styles/global.css';
 import CommonHead from '../components/CommonHead.astro';
+import SearchModal from '../components/SearchModal.astro';
+import ModelContextTools from '../components/ModelContextTools.astro';
 ---
 
 <html lang="en">
@@ -20,6 +22,8 @@ import CommonHead from '../components/CommonHead.astro';
       </ul>
       <a href="/" class="home-link">← Back to home</a>
     </article>
+    <SearchModal />
+    <ModelContextTools />
 
     <style>
       .prose.not-found {

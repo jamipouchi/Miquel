@@ -16,6 +16,7 @@ Using Cloudflare's services:
 - AI to verify comments is provided by [Cloudflare AI](https://developers.cloudflare.com/workers-ai/)
 - Users and subscriptions are stored in a [Cloudflare D1](https://developers.cloudflare.com/d1/) database
 - Create subscription and comment endpoints are served by a [Cloudflare Worker](https://developers.cloudflare.com/workers/)
+- Search and AI answers are powered by [Cloudflare AI Search](https://developers.cloudflare.com/ai-search/), which crawls and indexes this site automatically
 
 ## Content Structure
 

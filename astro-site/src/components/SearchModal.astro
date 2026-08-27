@@ -1,0 +1,753 @@
+---
+/**
+ * Site-wide "ask" UI (⌘K / "/") backed by the Cloudflare AI Search
+ * public chat endpoint: streaming markdown answers grounded in this
+ * site's pages, with sources. No framework — vanilla TS in a module
+ * script, event delegation so it survives Astro view transitions.
+ */
+---
+
+<button id="search-trigger" type="button" aria-label="Open search" aria-haspopup="dialog">
+  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+    <circle cx="11" cy="11" r="7"></circle>
+    <line x1="21" y1="21" x2="16.5" y2="16.5"></line>
+  </svg>
+  <span>Search</span>
+  <kbd>⌘K</kbd>
+</button>
+
+<div id="site-search" class="site-search" hidden>
+  <div class="search-backdrop" data-search-close></div>
+  <div class="search-modal" role="dialog" aria-modal="true" aria-label="Ask this site">
+    <div class="search-bar">
+      <svg class="search-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+        <circle cx="11" cy="11" r="7"></circle>
+        <line x1="21" y1="21" x2="16.5" y2="16.5"></line>
+      </svg>
+      <input
+        id="search-input"
+        type="search"
+        placeholder="Ask anything about this site…"
+        autocomplete="off"
+        spellcheck="false"
+        aria-label="Your question"
+        enterkeyhint="search"
+      />
+      <button id="search-ask-btn" type="button">Ask</button>
+    </div>
+
+    <div class="search-body">
+      <div class="ask-examples" id="ask-examples">
+        <p class="examples-hint">Answers are generated from this site's pages.</p>
+        <button type="button" data-q="What is this site about?">What is this site about?</button>
+        <button type="button" data-q="What did Miquel conclude about Temporal worker slots?">What did Miquel conclude about Temporal worker slots?</button>
+      </div>
+
+      <div class="search-status" id="search-status" role="status" aria-live="polite"></div>
+
+      <div class="ask-result" id="ask-result" hidden>
+        <div class="ask-question" id="ask-question"></div>
+        <div class="ask-answer" id="ask-answer"></div>
+        <div class="ask-sources-wrap" id="ask-sources-wrap" hidden>
+          <div class="ask-sources-title">Sources</div>
+          <ol class="ask-sources" id="ask-sources"></ol>
+        </div>
+      </div>
+    </div>
+
+    <div class="search-footer">
+      <span class="search-footer-keys"><kbd>↵</kbd> ask</span>
+      <span class="search-footer-keys"><kbd>esc</kbd> close</span>
+    </div>
+  </div>
+</div>
+
+<style>
+  #search-trigger {
+    position: fixed;
+    top: 1.1rem;
+    right: 1.4rem;
+    z-index: 40;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.8rem;
+    font-family: inherit;
+    font-size: 0.8125rem;
+    color: #666;
+    background-color: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  #search-trigger:hover {
+    border-color: #0066cc;
+    color: #0066cc;
+    box-shadow: 0 2px 8px rgba(0, 102, 204, 0.1);
+  }
+
+  #search-trigger kbd {
+    font-size: 0.6875rem;
+  }
+
+  .site-search,
+  .site-search * {
+    box-sizing: border-box;
+  }
+
+  .site-search[hidden] {
+    display: none;
+  }
+
+  .search-backdrop {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(26, 26, 26, 0.35);
+  }
+
+  .search-modal {
+    position: fixed;
+    top: 10vh;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(640px, calc(100vw - 2rem));
+    max-height: 76vh;
+    display: flex;
+    flex-direction: column;
+    background-color: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.16);
+    overflow: hidden;
+    animation: search-pop 0.16s ease-out;
+  }
+
+  @keyframes search-pop {
+    from {
+      opacity: 0;
+      transform: translateX(-50%) translateY(-6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  }
+
+  .search-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.85rem 1.1rem;
+    border-bottom: 1px solid #ebebeb;
+  }
+
+  .search-icon {
+    color: #999;
+    flex-shrink: 0;
+  }
+
+  #search-input {
+    flex: 1;
+    min-width: 0;
+    font-family: inherit;
+    font-size: 1rem;
+    color: #1a1a1a;
+    background: none;
+    border: none;
+    outline: none;
+  }
+
+  #search-input::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+  }
+
+  #search-ask-btn {
+    flex-shrink: 0;
+    font-family: inherit;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    padding: 0.4rem 0.9rem;
+    color: #0066cc;
+    background-color: #fff;
+    border: 1px solid #0066cc;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+  }
+
+  #search-ask-btn:hover {
+    background-color: #0066cc;
+    color: #fff;
+  }
+
+  #search-ask-btn:disabled {
+    border-color: #ddd;
+    color: #bbb;
+    cursor: default;
+    background-color: #fff;
+  }
+
+  .search-body {
+    overflow-y: auto;
+    min-height: 4rem;
+    padding: 0 1.25rem;
+  }
+
+  .ask-examples {
+    padding: 1rem 0 1.25rem;
+  }
+
+  .ask-examples[hidden] {
+    display: none;
+  }
+
+  .examples-hint {
+    font-size: 0.8125rem;
+    color: #888;
+    margin: 0 0 0.75rem;
+  }
+
+  .ask-examples button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    font-family: inherit;
+    font-size: 0.875rem;
+    color: #444;
+    background-color: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    padding: 0.55rem 0.8rem;
+    margin: 0.4rem 0;
+    cursor: pointer;
+    transition: border-color 0.15s ease, color 0.15s ease;
+  }
+
+  .ask-examples button:hover {
+    border-color: #0066cc;
+    color: #0066cc;
+  }
+
+  .search-status {
+    font-size: 0.8125rem;
+    color: #888;
+    padding: 0.9rem 0 0.3rem;
+  }
+
+  .search-status:empty {
+    display: none;
+  }
+
+  .ask-result {
+    padding: 0.9rem 0 1.25rem;
+  }
+
+  .ask-result[hidden] {
+    display: none;
+  }
+
+  .ask-question {
+    font-size: 1.0625rem;
+    font-weight: 600;
+    color: #111;
+    margin-bottom: 0.75rem;
+  }
+
+  /* Rendered markdown answer */
+  .ask-answer {
+    font-size: 0.9375rem;
+    line-height: 1.65;
+    color: #1a1a1a;
+    word-wrap: break-word;
+  }
+
+  .ask-answer > :first-child {
+    margin-top: 0;
+  }
+
+  .ask-answer > :last-child {
+    margin-bottom: 0;
+  }
+
+  .ask-answer p {
+    margin: 0.6rem 0;
+  }
+
+  .ask-answer h3,
+  .ask-answer h4 {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: #111;
+    margin: 1.1rem 0 0.4rem;
+  }
+
+  .ask-answer ul,
+  .ask-answer ol {
+    margin: 0.6rem 0;
+    padding-left: 1.4rem;
+  }
+
+  .ask-answer li {
+    margin: 0.3rem 0;
+  }
+
+  .ask-answer li::marker {
+    color: #0066cc;
+  }
+
+  .ask-answer strong {
+    font-weight: 600;
+    color: #000;
+  }
+
+  .ask-answer a {
+    color: #0066cc;
+  }
+
+  .ask-answer code {
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, monospace;
+    font-size: 0.85em;
+    padding: 0.15em 0.4em;
+    background-color: #f8f8f8;
+    border-radius: 4px;
+    color: #476582;
+  }
+
+  .ask-answer pre {
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, monospace;
+    font-size: 0.8125rem;
+    padding: 0.9rem 1rem;
+    margin: 0.75rem 0;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    overflow-x: auto;
+    line-height: 1.55;
+    color: #24292f;
+  }
+
+  .ask-answer pre code {
+    background: none;
+    padding: 0;
+    color: inherit;
+    font-size: inherit;
+  }
+
+  .ask-answer:empty::after {
+    content: '…';
+    color: #999;
+  }
+
+  .ask-sources-wrap {
+    margin-top: 1.25rem;
+    padding-top: 0.9rem;
+    border-top: 1px solid #ebebeb;
+  }
+
+  .ask-sources-title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #888;
+    margin-bottom: 0.4rem;
+  }
+
+  .ask-sources {
+    margin: 0;
+    padding-left: 1.4rem;
+  }
+
+  .ask-sources li {
+    margin: 0.3rem 0;
+    font-size: 0.8125rem;
+  }
+
+  .ask-sources a {
+    color: #0066cc;
+  }
+
+  .search-footer {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.5rem 1.1rem;
+    border-top: 1px solid #ebebeb;
+    font-size: 0.75rem;
+    color: #999;
+  }
+
+  kbd {
+    display: inline-block;
+    padding: 1px 5px;
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, monospace;
+    font-size: 0.6875rem;
+    color: #666;
+    background-color: #f8f8f8;
+    border: 1px solid #ddd;
+    border-bottom-width: 2px;
+    border-radius: 4px;
+  }
+
+  @media (max-width: 640px) {
+    .search-modal {
+      top: 6vh;
+      max-height: 84vh;
+    }
+
+    #search-trigger {
+      top: 0.75rem;
+      right: 0.75rem;
+      padding: 0.35rem 0.6rem;
+    }
+
+    #search-trigger span,
+    #search-trigger kbd {
+      display: none;
+    }
+  }
+</style>
+
+<script>
+  import { streamChat, groupByPage, pageKey } from '../lib/aiSearch';
+
+  function root(): HTMLElement | null {
+    return document.getElementById('site-search');
+  }
+
+  function input(): HTMLInputElement | null {
+    return document.getElementById('search-input') as HTMLInputElement | null;
+  }
+
+  function setStatus(text: string) {
+    const el = document.getElementById('search-status');
+    if (el) el.textContent = text;
+  }
+
+  function escapeHtml(text: string): string {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  /** Inline markdown (escaped first, so only our own tags ever appear). */
+  function renderInline(text: string): string {
+    let html = escapeHtml(text);
+    html = html.replace(/`([^`]+)`/g, (_m, code: string) => `<code>${code}</code>`);
+    html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/(^|[^*])\*([^*]+)\*/g, '$1<em>$2</em>');
+    html = html.replace(
+      /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
+      (_m, label: string, href: string) =>
+        `<a href="${href}" target="_blank" rel="noopener noreferrer">${label}</a>`,
+    );
+    return html;
+  }
+
+  /** Minimal markdown renderer: paragraphs, headings, lists, fenced code. */
+  function renderMarkdown(markdown: string, target: HTMLElement) {
+    target.innerHTML = '';
+    const lines = markdown.split('\n');
+    let paragraph: string[] = [];
+    let list: { ordered: boolean; items: string[] } | null = null;
+    let codeLines: string[] | null = null;
+
+    const flushParagraph = () => {
+      if (paragraph.length === 0) return;
+      const p = document.createElement('p');
+      p.innerHTML = renderInline(paragraph.join(' '));
+      target.appendChild(p);
+      paragraph = [];
+    };
+    const flushList = () => {
+      if (!list) return;
+      const el = document.createElement(list.ordered ? 'ol' : 'ul');
+      for (const item of list.items) {
+        const li = document.createElement('li');
+        li.innerHTML = renderInline(item);
+        el.appendChild(li);
+      }
+      target.appendChild(el);
+      list = null;
+    };
+    const flushAll = () => {
+      flushParagraph();
+      flushList();
+    };
+
+    for (const line of lines) {
+      if (codeLines !== null) {
+        if (line.trimEnd().endsWith('```')) {
+          const pre = document.createElement('pre');
+          const code = document.createElement('code');
+          code.textContent = codeLines.join('\n');
+          pre.appendChild(code);
+          target.appendChild(pre);
+          codeLines = null;
+        } else {
+          codeLines.push(line);
+        }
+        continue;
+      }
+      if (line.trimStart().startsWith('```')) {
+        flushAll();
+        codeLines = [];
+        continue;
+      }
+      const heading = line.match(/^#{1,4}\s+(.*)$/);
+      if (heading) {
+        flushAll();
+        const h = document.createElement('h4');
+        h.innerHTML = renderInline(heading[1]);
+        target.appendChild(h);
+        continue;
+      }
+      const bullet = line.match(/^\s*[-*]\s+(.*)$/);
+      const ordered = line.match(/^\s*\d+[.)]\s+(.*)$/);
+      if (bullet || ordered) {
+        flushParagraph();
+        const item = (bullet ?? ordered)![1];
+        const isOrdered = Boolean(ordered);
+        if (!list || list.ordered !== isOrdered) {
+          flushList();
+          list = { ordered: isOrdered, items: [] };
+        }
+        list.items.push(item);
+        continue;
+      }
+      if (line.trim() === '') {
+        flushAll();
+        continue;
+      }
+      flushList();
+      paragraph.push(line.trim());
+    }
+    if (codeLines !== null) {
+      const pre = document.createElement('pre');
+      const code = document.createElement('code');
+      code.textContent = codeLines.join('\n');
+      pre.appendChild(code);
+      target.appendChild(pre);
+    }
+    flushAll();
+  }
+
+  const state: {
+    askAbort: AbortController | null;
+    restoreFocus: HTMLElement | null;
+    opened: boolean;
+  } = {
+    askAbort: null,
+    restoreFocus: null,
+    opened: false,
+  };
+
+  function open() {
+    const el = root();
+    const field = input();
+    if (!el || !field) return;
+    if (!state.opened) {
+      state.restoreFocus = document.activeElement as HTMLElement | null;
+    }
+    state.opened = true;
+    el.hidden = false;
+    document.body.style.overflow = 'hidden';
+    for (const child of document.body.children) {
+      if (child !== el) child.setAttribute('inert', '');
+    }
+    field.focus();
+    syncAskButton();
+  }
+
+  function close() {
+    const el = root();
+    if (!el) return;
+    cancelAsk();
+    el.hidden = true;
+    document.body.style.overflow = '';
+    for (const child of document.body.children) {
+      if (child !== el) child.removeAttribute('inert');
+    }
+    state.opened = false;
+    state.restoreFocus?.focus?.();
+    state.restoreFocus = null;
+  }
+
+  function cancelAsk() {
+    if (state.askAbort) state.askAbort.abort();
+    state.askAbort = null;
+  }
+
+  function syncAskButton() {
+    const field = input();
+    const btn = document.getElementById('search-ask-btn') as HTMLButtonElement | null;
+    if (!field || !btn) return;
+    btn.disabled = field.value.trim().length < 3;
+  }
+
+  function resetResult() {
+    const result = document.getElementById('ask-result');
+    const answer = document.getElementById('ask-answer');
+    const sources = document.getElementById('ask-sources');
+    const sourcesWrap = document.getElementById('ask-sources-wrap');
+    const examples = document.getElementById('ask-examples');
+    if (result) result.hidden = false;
+    if (answer) answer.innerHTML = '';
+    if (sources) sources.innerHTML = '';
+    if (sourcesWrap) sourcesWrap.hidden = true;
+    if (examples) examples.hidden = true;
+  }
+
+  async function ask(question: string) {
+    cancelAsk();
+    const controller = new AbortController();
+    state.askAbort = controller;
+
+    resetResult();
+    const questionEl = document.getElementById('ask-question');
+    const answerEl = document.getElementById('ask-answer');
+    const sourcesList = document.getElementById('ask-sources');
+    const sourcesWrap = document.getElementById('ask-sources-wrap');
+    if (!questionEl || !answerEl || !sourcesList || !sourcesWrap) return;
+    questionEl.textContent = question;
+    setStatus('Reading the site…');
+
+    let markdown = '';
+    try {
+      for await (const event of streamChat(question, controller.signal)) {
+        if (controller.signal.aborted) return;
+        if (event.type === 'sources') {
+          const seen = new Set<string>();
+          for (const hit of groupByPage(event.chunks)) {
+            const key = pageKey(hit.url);
+            if (seen.has(key)) continue;
+            seen.add(key);
+            const li = document.createElement('li');
+            const link = document.createElement('a');
+            link.href = key;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            link.textContent = hit.title;
+            li.appendChild(link);
+            sourcesList.appendChild(li);
+          }
+          sourcesWrap.hidden = seen.size === 0;
+        } else if (event.type === 'delta') {
+          if (markdown === '') setStatus('');
+          markdown += event.text;
+          renderMarkdown(markdown, answerEl);
+          const body = answerEl.closest('.search-body');
+          const nearBottom = body
+            ? body.scrollHeight - body.scrollTop - body.clientHeight < 80
+            : true;
+          if (nearBottom) answerEl.lastElementChild?.scrollIntoView({ block: 'nearest' });
+        } else {
+          break;
+        }
+      }
+      setStatus('');
+      if (markdown === '') setStatus('No answer came back. Please try again.');
+    } catch (error) {
+      if ((error as Error).name === 'AbortError') return;
+      setStatus('The answer service is unavailable right now.');
+    }
+  }
+
+  function submit() {
+    const field = input();
+    const question = field?.value.trim() ?? '';
+    if (question.length < 3) return;
+    void ask(question);
+  }
+
+  // Event delegation: listeners survive Astro view transitions.
+  document.addEventListener('click', (event) => {
+    const target = event.target as HTMLElement;
+
+    if (target.closest('#search-trigger')) {
+      event.preventDefault();
+      open();
+      return;
+    }
+
+    if (target.closest('[data-search-close]')) {
+      close();
+      return;
+    }
+
+    if (target.closest('#search-ask-btn')) {
+      submit();
+      return;
+    }
+
+    const example = target.closest<HTMLButtonElement>('.ask-examples button[data-q]');
+    if (example?.dataset.q) {
+      const field = input();
+      if (field) field.value = example.dataset.q;
+      syncAskButton();
+      submit();
+      return;
+    }
+
+    if (target.closest('.ask-sources a')) {
+      close();
+    }
+  });
+
+  document.addEventListener('keydown', (event) => {
+    const openNow = !root()?.hidden;
+
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+      event.preventDefault();
+      if (openNow) close();
+      else open();
+      return;
+    }
+
+    if (!openNow) {
+      const target = event.target as HTMLElement;
+      const typing =
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.tagName === 'SELECT' ||
+        target.isContentEditable;
+      if (event.key === '/' && !typing) {
+        event.preventDefault();
+        open();
+      }
+      return;
+    }
+
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      close();
+      return;
+    }
+    if (event.key === 'Enter') {
+      const target = event.target as HTMLElement;
+      if (target.id === 'search-input') {
+        event.preventDefault();
+        submit();
+      }
+    }
+  });
+
+  document.addEventListener('input', (event) => {
+    if ((event.target as HTMLElement).id === 'search-input') {
+      syncAskButton();
+    }
+  });
+
+  document.addEventListener('astro:page-load', () => {
+    // The marker is wiped when view transitions swap <html> attributes.
+    document.documentElement.dataset.searchReady = '1';
+    cancelAsk();
+  });
+
+  document.documentElement.dataset.searchReady = '1';
+</script>

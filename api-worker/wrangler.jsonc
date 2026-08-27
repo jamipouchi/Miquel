@@ -51,6 +51,11 @@
                     "namespace_id": "69",
                     "name": "RATE_LIMITER",
                     "simple": { "limit": 3, "period": 60 }
+                },
+                {
+                    "namespace_id": "70",
+                    "name": "METRICS_LIMITER",
+                    "simple": { "limit": 60, "period": 60 }
                 }
             ]
         }
@@ -92,6 +97,11 @@
             "namespace_id": "69",
             "name": "RATE_LIMITER",
             "simple": { "limit": 3, "period": 60 }
+        },
+        {
+            "namespace_id": "70",
+            "name": "METRICS_LIMITER",
+            "simple": { "limit": 60, "period": 60 }
         }
     ]
 }

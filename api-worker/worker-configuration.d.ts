@@ -8,9 +8,11 @@ declare namespace Cloudflare {
 	interface Env {
 		DEV: true | false;
 		ENCRYPTION_KEY: string;
+		CONTACT_KEY?: string;
 		COMMENTS_BUCKET: R2Bucket;
 		personal_site: D1Database;
 		RATE_LIMITER: RateLimit;
+		METRICS_LIMITER: RateLimit;
 		AI: Ai;
 	}
 }

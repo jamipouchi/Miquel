@@ -249,7 +249,13 @@ npm run dev      # Start dev server (localhost:4321)
 - Custom layout, centered design
 - Gradient 404, humorous explanations
 
-## API Integration
+## API Integration (api.miquelpuigturon.com)
+
+- `POST /subscribe`, `POST /comments` — pre-existing
+- `ALL /mcp` — MCP proxy (header allow-list, funnel logging)
+- `POST /metrics/webmcp` — agent metrics ingest (rate-limited)
+- `GET /metrics/webmcp` — aggregates (Bearer `CONTACT_KEY`)
+- `POST /contact`, `GET /contact/messages` — contact tool (reads need Bearer `CONTACT_KEY`)
 
 Backend API worker at `/api-worker/`:
 - **POST /comments**: Create comment (with AI spam check)
@@ -273,6 +279,27 @@ Static site generated to `dist/`:
 5. **Global styles**: Prefer extending `global.css` over component styles
 6. **Avoid layout shifts**: Everything loads fast, avoid loading states that cause layout shifts
 6. **Test the build**: `npm run build` must pass before deploying
+
+## Search & AI Answers (Cloudflare AI Search)
+
+Site search (⌘K / `/` button, top-right) is a single-mode "ask" experience powered by a managed Cloudflare AI Search instance (`miquel-site`): a streaming markdown answer grounded in the site's pages, with a sources list. It syncs daily from `sitemap.xml` (generated at build time by `src/pages/sitemap.xml.ts`, with per-page `<lastmod>` from each markdown file's mtime) — unchanged pages are skipped, so idle syncs cost one sitemap fetch. It indexes only the `.page-body` div (the wrapped markdown content — never nav, comments, or footer). Browser rendering is off (the site is static HTML).
+
+- **No framework**: `src/components/SearchModal.astro` is vanilla TS (module script + event delegation, so it survives view transitions). Do not add React.
+- **Shared client**: `src/lib/aiSearch.ts` holds the public endpoint URL and the SSE streaming/dedupe logic. LLM output is untrusted: the markdown renderer escapes all HTML first and only emits its own tags (no raw HTML, http(s) links only).
+- **Query API**: public endpoint (`<id>.search.ai.cloudflare.com`) — `POST /search` for results, `POST /chat/completions` (streamable, OpenAI-compatible) for AI answers. Manage the instance via `wrangler ai-search` (needs an AI Search API token from the dashboard) or the REST API.
+- **Indexing**: content changes are picked up by the daily sync (within ~24h of a deploy). After publishing, run a manual sync job if you want it searchable immediately. Result titles are derived client-side from the page's first markdown h1 (sitemap crawl mode doesn't store title metadata). Only canonical trailing-slash URLs are in the sitemap, so the index stays deduplicated. Pages excluded from indexing (e.g. `meta/chat-transcript` — big and unrelated) are listed in `EXCLUDED_SLUGS` in `src/pages/sitemap.xml.ts`; the sync removes anything absent from the sitemap.
+
+## WebMCP (browser-native agent tools)
+
+`src/components/ModelContextTools.astro` registers **five tools** on `document.modelContext` on **every page** — four read-only (`search_site`, `read_page`, `ask_site`, `get_site_map`, all with `readOnlyHint`) plus one write tool (`contact_miquel`, deliberately without `readOnlyHint` so agents confirm with the user first). Chrome 151 exposes the API on normal pages, no COOP/COEP needed (the old `public/_headers` isolation block was removed). A synchronous `window.__webmcpToolsRegistered` flag prevents double registration across view transitions. `/meta/webmcp/` (`src/content/pages/meta/webmcp/index.mdx` + `src/components/AgentTools.astro`) is the human-facing status/docs page and registers nothing itself.
+
+Non-browser agents get the same capability through the hosted MCP endpoint, proxied behind this site's own domain at `https://api.miquelpuigturon.com/mcp` (transparent pass-through to the AI Search public endpoint, defined in `api-worker/src/index.ts`).
+
+**Metrics (AXO-style agent analytics, dogfood)**: D1 table `webmcp_metric` (migrations `0002`–`0004`) captures the agent funnel on both surfaces. `mcp-proxy` rows are written server-side by the api-worker: `__initialize__` (connect), `__list__` (discovery), and tool names (invocation), with a User-Agent-derived agent label (`agentFromUserAgent`); proxy "success" means HTTP 2xx. `webmcp` rows are self-reported by the in-page tools via `POST /metrics/webmcp` (rate-limited, own limiter namespace): tool, outcome, duration, page, random per-tab `session` id, redacted error, and the tool's input. **Inputs are PII-redacted server-side before storage** (`redactInput` in the api-worker — the single redactor: credential-shaped fields of any value type and literals like `ghp_…`/`sk-…`/`AKIA…`/`Bearer …` → `[redacted]`/`[token]`, emails → `[email]`, phone-like numbers → `[number]`). The client sends raw inputs over HTTPS to our own API, same as the contact form. Reading aggregates is **private**: `GET /metrics/webmcp` with header `Authorization: Bearer <CONTACT_KEY>` (timing-safe compared) returns totals, funnel, by_tool, by_agent, by_day, `sessions` (ordered per-session journeys with inputs, newest-50 steps, `truncated` flag), and `recent`.
+
+**Contact tool**: `contact_miquel` (the only write tool — no `readOnlyHint`, so agents confirm with the user) POSTs to `api.miquelpuigturon.com/contact` (validated, rate-limited) → D1 `contact_message` with the email **encrypted at rest**. Read messages at `GET /contact/messages` with `Authorization: Bearer <CONTACT_KEY>`; the key is the `CONTACT_KEY` Worker secret.
+
+Until WebMCP ships as a standard, Chrome gates it behind an **origin trial**. Today it only activates for browsers that enabled `chrome://flags/#enable-webmcp-testing`. To enable it for all Chrome visitors: register the origin `miquelpuigturon.com` at [developer.chrome.com/origin-trials](https://developer.chrome.com/origin-trials) (WebMCP trial), then add the issued token to `CommonHead.astro` as `<meta http-equiv="origin-trial" content="TOKEN">`. Tokens expire (~6 weeks) and are renewed in the same console.
 
 ## Summary
 

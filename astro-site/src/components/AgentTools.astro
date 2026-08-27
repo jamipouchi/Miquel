@@ -1,0 +1,134 @@
+---
+/**
+ * Human-readable status + documentation for the site's WebMCP tools.
+ * The tools themselves are registered on every page by
+ * ModelContextTools.astro; this section just shows what agents see.
+ */
+---
+
+<section class="agent-tools">
+  <div class="agent-status" id="webmcp-status">WebMCP: checking…</div>
+
+  <div class="agent-tools-list">
+    <h3>Tools available to browser agents</h3>
+    <ul>
+      <li><code>search_site</code> <span class="tag read">read</span> — semantic + keyword search over every page of this site.</li>
+      <li><code>read_page</code> <span class="tag read">read</span> — full text of any page, by path.</li>
+      <li><code>ask_site</code> <span class="tag read">read</span> — ask a question; get a generated answer grounded in this site, with sources.</li>
+      <li><code>get_site_map</code> <span class="tag read">read</span> — list of all page paths.</li>
+      <li><code>contact_miquel</code> <span class="tag write">write</span> — send the site owner a message on the user's behalf (agents confirm with the user first).</li>
+    </ul>
+    <p class="agent-note">
+      These tools are registered on <strong>every page</strong> of this site, not just this
+      one — this page exists to show their status and document them. They follow the
+      <a href="https://github.com/webmachinelearning/webmcp">WebMCP proposal</a> (Chrome
+      origin trial — enable <code>chrome://flags/#enable-webmcp-testing</code>, or the site
+      needs an origin-trial token).
+    </p>
+    <p class="agent-note">
+      Agents without browser WebMCP can use the hosted MCP endpoint at
+      <code>https://api.miquelpuigturon.com/mcp</code>.
+    </p>
+  </div>
+</section>
+
+<script is:inline data-astro-rerun>
+  (function () {
+    var statusEl = document.getElementById('webmcp-status');
+
+    function setStatus(text, ok) {
+      if (!statusEl) return;
+      statusEl.textContent = text;
+      statusEl.classList.toggle('ok', ok === true);
+      statusEl.classList.toggle('inactive', ok === false);
+    }
+
+    var mc = navigator.modelContext || document.modelContext;
+    if (!mc || typeof mc.getTools !== 'function') {
+      setStatus(
+        'WebMCP: not active — this browser does not expose modelContext. Try Chrome with chrome://flags/#enable-webmcp-testing.',
+        false,
+      );
+      return;
+    }
+
+    var tries = 0;
+    function check() {
+      mc.getTools().then(function (tools) {
+        if (tools.length > 0) {
+          setStatus('WebMCP: active — ' + tools.length + ' tools registered for browser agents.', true);
+        } else if (tries++ < 20) {
+          setTimeout(check, 100);
+        } else {
+          setStatus('WebMCP: available, but no tools were registered.', false);
+        }
+      });
+    }
+    check();
+  })();
+</script>
+
+<style>
+  .agent-tools {
+    margin: 2rem 0;
+    padding: 1.25rem 1.5rem;
+    background-color: #f8f9fa;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+  }
+
+  .agent-status {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #888;
+    margin-bottom: 0.75rem;
+  }
+
+  .agent-status.ok {
+    color: #1a7f37;
+  }
+
+  .agent-status.inactive {
+    color: #b35900;
+  }
+
+  .agent-tools-list h3 {
+    margin: 0.5rem 0 0.5rem;
+    font-size: 1rem;
+  }
+
+  .agent-tools-list ul {
+    margin: 0.5rem 0;
+    padding-left: 1.5rem;
+  }
+
+  .agent-tools-list li {
+    margin: 0.4rem 0;
+    font-size: 0.9375rem;
+  }
+
+  .tag {
+    display: inline-block;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    padding: 0 0.4rem;
+    border-radius: 4px;
+    vertical-align: 1px;
+  }
+
+  .tag.read {
+    color: #1a7f37;
+    background-color: #e6f4ea;
+  }
+
+  .tag.write {
+    color: #b35900;
+    background-color: #fdf0e0;
+  }
+
+  .agent-note {
+    font-size: 0.875rem;
+    color: #555;
+    margin-top: 0.75rem;
+  }
+</style>

@@ -1,0 +1,299 @@
+---
+/**
+ * Registers this site's W3C WebMCP tools on `document.modelContext` so AI
+ * agents running in the browser can search and read the site from any page.
+ * Invisible by design — the human-readable status/docs live on /meta/webmcp/.
+ * Spec: https://github.com/webmachinelearning/webmcp
+ */
+import { getCollection } from 'astro:content';
+import { AI_SEARCH_ENDPOINT } from '../lib/aiSearch';
+import { EXCLUDED_SLUGS } from '../lib/siteSlugs';
+
+const pages = (await getCollection('pages')).filter(
+  (page) => !EXCLUDED_SLUGS.has(page.slug),
+);
+const siteMap = pages
+  .map((page) => (page.slug === 'index' ? '/' : `/${page.slug}/`))
+  .sort();
+
+const metricsUrl = import.meta.env.DEV
+  ? 'http://localhost:8787/metrics/webmcp'
+  : 'https://api.miquelpuigturon.com/metrics/webmcp';
+
+const contactUrl = import.meta.env.DEV
+  ? 'http://localhost:8787/contact'
+  : 'https://api.miquelpuigturon.com/contact';
+---
+
+<script is:inline data-astro-rerun define:vars={{ siteMap, endpoint: AI_SEARCH_ENDPOINT, metricsUrl, contactUrl }}>
+  (function () {
+    var mc = navigator.modelContext || document.modelContext;
+    if (!mc || typeof mc.registerTool !== 'function') return;
+
+    function httpError(name, res) {
+      return new Error(name + ' failed with HTTP ' + res.status);
+    }
+
+    // Random per-tab session id (no fingerprinting) so multi-tool agent
+    // journeys can be grouped.
+    function sessionId() {
+      try {
+        var existing = sessionStorage.getItem('webmcp-session');
+        if (existing) return existing;
+        var id = (crypto.randomUUID ? crypto.randomUUID() : String(Math.random())).slice(0, 36);
+        sessionStorage.setItem('webmcp-session', id);
+        return id;
+      } catch (e) {
+        return null;
+      }
+    }
+    var session = sessionId();
+
+    // Anonymous usage metric: tool name, outcome, duration, page, and the
+    // raw input — the server redacts PII (emails, tokens, credential
+    // fields) before anything is stored.
+    function report(tool, ok, ms, error, input) {
+      try {
+        fetch(metricsUrl, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            tool: tool,
+            success: ok,
+            duration_ms: ms,
+            page: location.pathname,
+            session: session,
+            error: error ? String(error && error.message ? error.message : error).slice(0, 200) : null,
+            input: input || null,
+          }),
+          keepalive: true,
+        }).catch(function () {});
+      } catch (e) {}
+    }
+
+    function instrumented(tool) {
+      var execute = tool.execute;
+      tool.execute = async function (args, ctx) {
+        var started = Date.now();
+        var input = null;
+        try { input = args == null ? null : JSON.stringify(args); } catch (e) {}
+        try {
+          var result = await execute(args, ctx);
+          report(tool.name, true, Date.now() - started, null, input);
+          return result;
+        } catch (e) {
+          report(tool.name, false, Date.now() - started, e, input);
+          throw e;
+        }
+      };
+      return tool;
+    }
+
+    function titleFromText(text) {
+      var m = text.match(/^#\s+(.+?)\s*$/m);
+      return m ? m[1].trim() : null;
+    }
+
+    function humanizePath(key) {
+      var parts = key.split('/').filter(Boolean);
+      var last = parts.length ? parts[parts.length - 1] : 'Home';
+      var spaced = last.replace(/[-_]+/g, ' ');
+      return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+    }
+
+    function formatHits(chunks) {
+      var seen = {};
+      var out = [];
+      for (var i = 0; i < chunks.length; i++) {
+        var chunk = chunks[i];
+        var url = (chunk.item && chunk.item.key) || '';
+        var key = url.replace(/\/+$/, '') || '/';
+        if (seen[key]) continue;
+        seen[key] = true;
+        var title =
+          (chunk.item && chunk.item.metadata && chunk.item.metadata.title) ||
+          titleFromText(chunk.text) ||
+          humanizePath(key);
+        out.push({ title: title, url: url, excerpt: chunk.text.slice(0, 400) });
+        if (out.length >= 8) break;
+      }
+      return out;
+    }
+
+    // View transitions reuse the same document and window, so a synchronous
+    // flag (not an async getTools check) closes the double-registration race.
+    if (window.__webmcpToolsRegistered) return;
+    window.__webmcpToolsRegistered = true;
+
+    mc.registerTool(instrumented({
+        name: 'search_site',
+        title: 'Search miquelpuigturon.com',
+        description:
+          'Searches every page of miquelpuigturon.com (Miquel Puig Turon’s personal site: essays on software engineering, Temporal, infrastructure, and personal reflections). Returns matching pages with excerpts. Use this before read_page to locate relevant content.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            query: {
+              type: 'string',
+              description: 'Search query — natural language or keywords.',
+            },
+            max_results: {
+              type: 'number',
+              description: 'Maximum number of pages to return (default 5).',
+              default: 5,
+            },
+          },
+          required: ['query'],
+        },
+        annotations: { readOnlyHint: true },
+        execute: async function (args) {
+          var res = await fetch(endpoint + '/search', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ query: args.query }),
+          });
+          if (!res.ok) throw httpError('search_site', res);
+          var data = await res.json();
+          var hits = formatHits(data.result.chunks).slice(
+            0,
+            args.max_results == null ? 5 : args.max_results,
+          );
+          if (hits.length === 0) return 'No results for: ' + args.query;
+          return JSON.stringify(
+            hits.map(function (hit) {
+              return { title: hit.title, url: hit.url, excerpt: hit.excerpt };
+            }),
+            null,
+            2,
+          );
+        },
+      }));
+
+    mc.registerTool(instrumented({
+      name: 'read_page',
+      title: 'Read a page of miquelpuigturon.com',
+      description:
+        'Returns the full text content of a page on miquelpuigturon.com by its path, e.g. "/humanity/temporal/worker-configuration/". Use get_site_map or search_site to find paths first.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          path: {
+            type: 'string',
+            description: 'Absolute path of the page, with or without trailing slash.',
+          },
+        },
+        required: ['path'],
+      },
+      annotations: { readOnlyHint: true },
+      execute: async function (args) {
+        // Same-origin only: protocol-relative '//host/…' paths must never
+        // turn this tool into a cross-origin fetch.
+        var target;
+        try {
+          target = new URL(String(args.path || ''), location.origin);
+        } catch (e) {
+          throw new Error('read_page: invalid path');
+        }
+        if (target.origin !== location.origin) {
+          throw new Error('read_page: path must be same-origin');
+        }
+        var path = target.pathname;
+        if (!/\/$/.test(path) && !/\.[a-z0-9]+$/i.test(path)) path += '/';
+        var res = await fetch(path);
+        if (!res.ok) throw httpError('read_page', res);
+        var html = await res.text();
+        var doc = new DOMParser().parseFromString(html, 'text/html');
+        var body = doc.querySelector('.page-body') || doc.body;
+        var text = (body.innerText || body.textContent || '').replace(/\n{3,}/g, '\n\n').trim();
+        if (text.length > 24000) text = text.slice(0, 24000) + '\n\n[truncated]';
+        return text;
+      },
+    }));
+
+    mc.registerTool(instrumented({
+      name: 'ask_site',
+      title: 'Ask miquelpuigturon.com',
+      description:
+        'Asks a question about the content of miquelpuigturon.com and returns a generated answer grounded in the site’s pages, followed by the source pages used.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          question: {
+            type: 'string',
+            description: 'The question to answer from the site’s content.',
+          },
+        },
+        required: ['question'],
+      },
+      annotations: { readOnlyHint: true },
+      execute: async function (args) {
+        var res = await fetch(endpoint + '/chat/completions', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            messages: [{ role: 'user', content: args.question }],
+          }),
+        });
+        if (!res.ok) throw httpError('ask_site', res);
+        var data = await res.json();
+        var answer = data.choices && data.choices[0] && data.choices[0].message
+          ? data.choices[0].message.content
+          : '';
+        var sources = formatHits(data.chunks || []).map(function (hit) {
+          return hit.title + ' — ' + hit.url;
+        });
+        return answer + '\n\nSources:\n' + sources.map(function (s, i) {
+          return '[' + (i + 1) + '] ' + s;
+        }).join('\n');
+      },
+    }));
+
+    mc.registerTool(instrumented({
+      name: 'get_site_map',
+      title: 'Site map of miquelpuigturon.com',
+      description:
+        'Returns the list of all page paths on miquelpuigturon.com. Use with read_page to explore the site.',
+      inputSchema: {
+        type: 'object',
+        properties: {},
+      },
+      annotations: { readOnlyHint: true },
+      execute: async function () {
+        return JSON.stringify(siteMap, null, 2);
+      },
+    }));
+
+    mc.registerTool(instrumented({
+      name: 'contact_miquel',
+      title: 'Send Miquel a message',
+      description:
+        'Sends a message to the site owner (Miquel) on behalf of the user. Always ask the user for their name, email and message first — never invent or reuse values. This is the only way to leave feedback or start a conversation.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: "The user's name." },
+          email: { type: 'string', description: "The user's email address, for replies." },
+          message: { type: 'string', description: 'The message to send.' },
+        },
+        required: ['name', 'email', 'message'],
+      },
+      execute: async function (args) {
+        var res = await fetch(contactUrl, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            name: String(args.name || '').slice(0, 100),
+            email: String(args.email || '').slice(0, 200),
+            message: String(args.message || '').slice(0, 5000),
+          }),
+        });
+        if (!res.ok) {
+          var detail = '';
+          try { detail = (await res.json()).error || ''; } catch (e) {}
+          throw new Error('contact_miquel failed: ' + (detail || 'HTTP ' + res.status));
+        }
+        return 'Message sent. Miquel will read it and can reply to the provided email.';
+      },
+    }));
+  })();
+</script>

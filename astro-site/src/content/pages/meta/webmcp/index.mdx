@@ -1,0 +1,25 @@
+import AgentTools from '../../../../components/AgentTools.astro'
+
+# WebMCP
+
+This site is machine-friendly: every page doubles as a [WebMCP](https://github.com/webmachinelearning/webmcp) server — a proposed W3C standard that lets **AI agents running in your browser** discover and use tools exposed by the page you're visiting.
+
+<AgentTools />
+
+## How it works
+
+When a WebMCP-capable agent visits any page on this site, the tools listed above are registered through the browser's `modelContext` API. The agent can then search everything I've written, read any page, ask questions grounded in the site's content — or send me a message on your behalf (it will ask you for your name, email and message first; that tool is marked as a write, so agents confirm before using it). All of this runs without any server-side integration, using your own browsing session.
+
+On this site, the tools are backed by [Cloudflare AI Search](https://developers.cloudflare.com/ai-search/), which crawls and indexes all pages (synced daily).
+
+## For agents without browser WebMCP
+
+The same search capability is exposed as a hosted [Model Context Protocol](https://modelcontext.io/) endpoint on this site's own API domain, plus a small public HTTP API:
+
+- **MCP endpoint**: `https://api.miquelpuigturon.com/mcp`
+- **Search API**: `POST https://78a22e35-6a11-4b9a-84fe-1ee03a805a39.search.ai.cloudflare.com/search` with `{"query": "..."}`
+- **Ask API** (OpenAI-compatible): `POST .../chat/completions`
+
+## Status
+
+WebMCP is experimental: it is shipping as a Chrome origin trial. Until it lands, the tools activate only in browsers that enable it (e.g. via `chrome://flags/#enable-webmcp-testing`). The hosted MCP endpoint above works everywhere, today.
