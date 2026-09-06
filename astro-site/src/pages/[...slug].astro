@@ -6,11 +6,17 @@ import Footer from '../components/Footer.astro';
 import TableOfContents from '../components/TableOfContents.astro';
 import SearchModal from '../components/SearchModal.astro';
 import ModelContextTools from '../components/ModelContextTools.astro';
+import Breadcrumbs from '../components/Breadcrumbs.astro';
+import { getTitleMap } from '../lib/siteTree';
 
 export async function getStaticPaths() {
   const allPages = await getCollection('pages');
-  
+
+  // The root entry (slug 'index') is owned by src/pages/index.astro, which
+  // renders '/'. Emitting it here too would produce a ghost '/index/' page
+  // with its own canonical pointing at itself.
   const paths = allPages
+    .filter(page => page.slug !== 'index')
     .map(page => ({
       params: { slug: page.slug },
       props: { page }
@@ -22,16 +28,22 @@ export async function getStaticPaths() {
 const { page } = Astro.props;
 const { Content, headings } = await page.render();
 
-const title = headings.find(h => h.depth === 1)?.text ?? page.slug.split('/').pop()!;
+// Titles unify on siteTree (same first-h1 rule, inline markdown stripped),
+// so <title>/og:title can never diverge from navigation labels — e.g. a
+// raw `headings` text would keep italics markup where siteTree strips it.
+const title = (await getTitleMap()).get(page.slug)
+  ?? headings.find(h => h.depth === 1)?.text
+  ?? page.slug.split('/').pop()!;
 const path = '/' + page.slug;
 ---
 
 <html lang="en">
   <head>
-    <CommonHead title={title} />
+    <CommonHead title={title} ogType="article" />
   </head>
   <body class="with-toc">
     <TableOfContents headings={headings} />
+    <Breadcrumbs path={path} title={title} />
     <article class="prose">
       <div class="page-body">
         <Content />
@@ -42,4 +54,3 @@ const path = '/' + page.slug;
     <ModelContextTools />
   </body>
 </html>
-

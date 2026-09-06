@@ -27,6 +27,13 @@ a:hover {
 
 .prose {
   max-width: 100%;
+  /* Long unbreakable strings in prose text (bare autolinked URLs, long
+     identifiers) must break instead of pushing the page wider than the
+     viewport — same contract as inline code below. `break-word` (not
+     `anywhere`) leaves intrinsic min-content sizes alone, so wide tables
+     keep their natural width and scroll horizontally on narrow screens
+     instead of being squeezed. */
+  overflow-wrap: break-word;
 }
 
 .prose h1 {
@@ -96,6 +103,9 @@ a:hover {
   border-radius: 4px;
   color: #476582;
   font-weight: 400;
+  /* Inline code must break long unbreakable strings (URLs, endpoints) instead
+     of pushing the page wider than the viewport. */
+  overflow-wrap: anywhere;
 }
 
 .prose pre {
@@ -118,6 +128,8 @@ a:hover {
   color: #24292f !important;
   border: none;
   font-size: 0.875rem;
+  /* pre scrolls horizontally (overflow-x: auto above); its code must not wrap. */
+  overflow-wrap: normal;
 }
 
 /* Override any syntax highlighting dark theme */
@@ -136,6 +148,21 @@ a:hover {
 /* Ensure all text in pre blocks is dark */
 .prose pre * {
   color: #24292f !important;
+}
+
+/* Content images (photo galleries inside <details>, figures) can never push
+   the page wider than the viewport; aspect ratio is preserved. */
+.prose img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Inline SVG diagrams (e.g. excalidraw exports with a fixed width
+   attribute) scale down like images; the viewBox preserves the aspect
+   ratio. Never applied to component icons — they live outside .prose. */
+.prose svg {
+  max-width: 100%;
+  height: auto;
 }
 
 .prose table {
@@ -166,12 +193,32 @@ a:hover {
   border-bottom: 1px solid #dee2e6;
 }
 
+/* Wide tables scroll horizontally within the page on narrow screens
+   instead of pushing the page wider than the viewport. Scoped below 768px
+   on purpose: `display: block` makes the table content shrink-to-fit, so
+   desktop (>= 768px) keeps the classic full-width (width: 100%) table
+   layout unchanged. */
+@media (max-width: 767px) {
+  .prose table {
+    display: block;
+    overflow-x: auto;
+  }
+}
+
 .prose blockquote {
   margin: 1.5rem 0;
   padding-left: 1.5rem;
   border-left: 3px solid #0066cc;
   color: #555;
   font-style: italic;
+}
+
+/* Article dividers: symmetric spacing and the same solid hairline used
+   everywhere else (browser-default hr margins are uneven). */
+.prose hr {
+  margin: 2.5rem 0;
+  border: 0;
+  border-top: 1px solid #e0e0e0;
 }
 
 /* Author note / update callout. Distinct from blockquote:
@@ -248,17 +295,159 @@ a:hover {
   body {
     padding: 1.5rem 1rem;
   }
-  
+
   .prose h1 {
     font-size: 2rem;
   }
-  
+
   .prose h2 {
     font-size: 1.5rem;
   }
-  
+
   .prose h3 {
     font-size: 1.25rem;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* Micro label — small uppercase letterspaced annotation                */
+/* ------------------------------------------------------------------ */
+
+.micro-label {
+  display: block;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #666;
+}
+
+/* ------------------------------------------------------------------ */
+/* Breadcrumbs — Home / Section / … / current (not linked)              */
+/* ------------------------------------------------------------------ */
+
+.breadcrumbs {
+  margin-bottom: 1.5rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none; /* single line: scroll, don't wrap */
+}
+
+.breadcrumbs::-webkit-scrollbar {
+  display: none;
+}
+
+.breadcrumb-list {
+  display: flex;
+  align-items: baseline;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-width: 100%;
+  white-space: nowrap;
+}
+
+.breadcrumb-item {
+  display: flex;
+  align-items: baseline;
+  margin: 0;
+  padding: 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  background: none;
+  border: none;
+}
+
+.breadcrumb-separator {
+  margin: 0 0.5rem;
+  color: #999;
+  user-select: none;
+}
+
+.breadcrumb-item a {
+  color: #0066cc;
+}
+
+.breadcrumb-item a:hover {
+  color: #0052a3;
+}
+
+.breadcrumb-current {
+  color: #555;
+  font-weight: 600; /* slightly heavier: the current page is the answer */
+}
+
+/* ------------------------------------------------------------------ */
+/* Focus visibility — keyboard users get a clear ring site-wide         */
+/* ------------------------------------------------------------------ */
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible {
+  outline: 2px solid #0066cc;
+  outline-offset: 2px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Comments separator — solid hairline like every other divider         */
+/* (overrides the gradient in CommentList.astro's global style block;   */
+/* over-qualified selector wins regardless of bundle order)             */
+/* ------------------------------------------------------------------ */
+
+.comments-section .comments-separator {
+  background: #e0e0e0;
+}
+
+/* ------------------------------------------------------------------ */
+/* WebMCP status + tool tags (rendered by AgentTools.astro on           */
+/* /meta/webmcp/) recolored into the site palette: blue = read,         */
+/* purple = write, neutral box for the status notice. The doubled       */
+/* classes are deliberate: the component's scoped styles compile to     */
+/* .tag[data-astro-cid].read-level specificity and are inlined AFTER    */
+/* this file, so overrides must strictly out-rank them.                 */
+/* ------------------------------------------------------------------ */
+
+.agent-tools .agent-status.agent-status {
+  padding: 0.5rem 0.75rem;
+  background-color: #f0f0f0;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  color: #555;
+}
+
+.agent-tools .agent-status.agent-status.ok {
+  color: #0052a3;
+}
+
+.agent-tools .agent-status.agent-status.inactive {
+  color: #666;
+}
+
+.agent-tools .tag.tag.read {
+  color: #0052a3;
+  background-color: #e5effa;
+}
+
+.agent-tools .tag.tag.write {
+  color: #6d28d9;
+  background-color: #f3ecfe;
+}
+
+/* ------------------------------------------------------------------ */
+/* Touch targets — the fixed search trigger is styled in                */
+/* SearchModal.astro; make sure it stays a 40px target on touch/small   */
+/* screens (over-qualified selector wins over the scoped #id rule)      */
+/* ------------------------------------------------------------------ */
+
+@media (max-width: 767px), (pointer: coarse) {
+  button#search-trigger {
+    min-height: 40px;
+    min-width: 40px;
+  }
+}
+
+
 

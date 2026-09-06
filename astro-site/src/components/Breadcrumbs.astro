@@ -1,0 +1,108 @@
+---
+/**
+ * Breadcrumbs — "Home / Humanity / Temporal / <current>".
+ *
+ * Home is linked first, intermediate crumbs are linked, and the current page
+ * is last and NOT linked (NN/g guideline). Titles come from siteTree, so the
+ * trail always matches the real tree. Not rendered on home (home is the root
+ * and lives in index.astro, which doesn't use this component).
+ *
+ * Also emits a schema.org BreadcrumbList JSON-LD block: >= 2 ListItems,
+ * home first, and the last item (the current page) omits `item`.
+ */
+import { getBreadcrumb, getShortTitle } from '../lib/siteTree';
+
+interface Props {
+  /** Page path, e.g. '/humanity/temporal/'. */
+  path: string;
+  /** Fallback title for the current page if the path is unknown to siteTree. */
+  title?: string;
+}
+
+const { path, title } = Astro.props;
+const crumbs = await getBreadcrumb(path);
+
+// Canonical URLs end with '/'; siteTree paths carry no trailing slash.
+// astro.config.mjs sets no `site`, so the production origin is spelled out.
+const SITE_URL = 'https://miquelpuigturon.com';
+
+const items: Record<string, unknown>[] = [
+  { '@type': 'ListItem', position: 1, name: 'Home', item: `${SITE_URL}/` },
+];
+for (let i = 0; i < crumbs.length; i++) {
+  const crumb = crumbs[i];
+  const isLast = i === crumbs.length - 1;
+  items.push({
+    '@type': 'ListItem',
+    position: i + 2,
+    name: crumb.title,
+    // The last item (the current page) omits `item`.
+    ...(isLast ? {} : { item: `${SITE_URL}${crumb.path}/` }),
+  });
+}
+// Unknown-path fallback keeps the >= 2 ListItems invariant (defensive only;
+// every page of [...slug].astro exists in the tree by construction).
+if (crumbs.length === 0 && title) {
+  items.push({ '@type': 'ListItem', position: 2, name: title });
+}
+
+const jsonLdText = JSON.stringify({
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: items,
+}).replace(/</g, '\\u003c'); // never let content terminate the script tag
+
+const show = crumbs.length > 0 || !!title;
+---
+
+{show && (
+  <Fragment>
+    <nav class="breadcrumbs" aria-label="Breadcrumb">
+      <ol class="breadcrumb-list">
+        <li class="breadcrumb-item">
+          <a href="/">Home</a>
+        </li>
+        {crumbs.length > 0
+          ? crumbs.map((crumb, i) => (
+              <li class="breadcrumb-item">
+                <span class="breadcrumb-separator" aria-hidden="true">/</span>
+                {i < crumbs.length - 1 ? (
+                  <a href={`${crumb.path}/`}>{crumb.title}</a>
+                ) : (
+                  <span class="breadcrumb-current" aria-current="page">
+                    {/* Short title: some deep-dive h1s embed their parent chain
+                        ("X > Y"), which would just repeat the previous crumb. */}
+                    {getShortTitle(crumb.title)}
+                  </span>
+                )}
+              </li>
+            ))
+          : title && (
+              <li class="breadcrumb-item">
+                <span class="breadcrumb-separator" aria-hidden="true">/</span>
+                <span class="breadcrumb-current" aria-current="page">{title}</span>
+              </li>
+            )}
+      </ol>
+    </nav>
+    <script type="application/ld+json" is:inline set:html={jsonLdText} />
+  </Fragment>
+)}
+
+<script>
+  // The breadcrumb strip is a single white-space:nowrap line that scrolls
+  // horizontally with the scrollbar hidden — so on narrow screens the current
+  // page (the last item) sits clipped off-screen. Jump the strip to its end
+  // so the current crumb is the visible answer. scrollLeft assignment is
+  // instant (no animation), so reduced-motion users are unaffected.
+  function revealCurrentCrumb() {
+    const strips = document.querySelectorAll('nav.breadcrumbs');
+    for (const strip of strips) {
+      strip.scrollLeft = strip.scrollWidth;
+    }
+  }
+  revealCurrentCrumb();
+  // Re-run after every view transition (astro:page-load also fires on the
+  // initial load when the ClientRouter is active).
+  document.addEventListener('astro:page-load', revealCurrentCrumb);
+</script>

@@ -46,6 +46,14 @@ Three route files handle all pages:
 - `[...slug].astro` - All content pages with unified layout (including this meta page!)
 - `404.astro` - Missing pages
 
+## Getting Around
+
+Everything here is one tree, and a page's path is part of its meaning: broader topics near the root (`/humanity/`), specifics deeper down (`/humanity/temporal/worker-configuration/`).
+
+**Finding your bearings.** Breadcrumbs at the top of every page (Home / section / … / where you are), a small tree at the end of every page showing the current page among its siblings and children, and the [whole tree on the home page](/#site-tree). The tree block on these site-internal pages only ever shows other meta pages — the section keeps to its own corner.
+
+**Subscribing.** The form at the end of every page defaults to *everything — the whole site*; you can narrow it to a single branch (that page and everything under it) or to just one article. Emails are stored encrypted and used for nothing else. To unsubscribe, email [miquel@miquelpuigturon.com](mailto:miquel@miquelpuigturon.com). If you prefer feeds, every page arrives in full at [/rss.xml](/rss.xml).
+
 ## Design Choices
 
 **No dark mode**: We are professionals, not guys coding under the covers of their bed.

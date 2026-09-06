@@ -1,0 +1,103 @@
+---
+/**
+ * SiteTree — renders one node of the full site tree as an <li>, recursing into
+ * children via self-import. Place inside a <ul> (see src/pages/index.astro).
+ *
+ * The top-level `meta` branch is styled as a visually separated, secondary
+ * area (purple accent + explanatory note) to mirror the meta isolation used in
+ * TreeNav. Pure static markup: no JS, no loading states.
+ */
+import type { SiteNode } from '../lib/siteTree';
+import Self from './SiteTree.astro';
+
+interface Props {
+  node: SiteNode;
+  /** Slug of the page to mark as current ('' = home). */
+  currentSlug: string;
+}
+
+const { node, currentSlug } = Astro.props;
+
+const isCurrent = node.slug === currentSlug;
+// Only the top-level meta branch gets the separation treatment.
+const isMetaBranch = node.depth === 1 && node.section === 'meta';
+const href = node.slug === '' ? '/' : `${node.path}/`;
+---
+
+<li class:list={['tree-node', { current: isCurrent, 'meta-branch': isMetaBranch }]}>
+  <a href={href} title={node.title} aria-current={isCurrent ? 'page' : undefined}>
+    {node.title}
+  </a>
+  {isMetaBranch && (
+    <p class="meta-note">Site-internal pages — how this site itself is built and run.</p>
+  )}
+  {node.children.length > 0 && (
+    <ul class="tree-branch">
+      {node.children.map((child) => (
+        <Self node={child} currentSlug={currentSlug} />
+      ))}
+    </ul>
+  )}
+</li>
+
+<style>
+  .tree-node {
+    margin: 0.4rem 0;
+    padding: 0;
+    line-height: 1.5;
+  }
+
+  .tree-node a {
+    color: #444;
+    text-decoration: none;
+    transition: color 0.2s ease;
+    overflow-wrap: break-word;
+  }
+
+  .tree-node a:hover {
+    color: #0066cc;
+  }
+
+  /* Current page (home, when viewed on /): same voice as TreeNav. */
+  .tree-node.current a {
+    color: #0066cc;
+    font-weight: 600;
+  }
+
+  /* Nested branches: hairline guide line shows the structure. */
+  .tree-branch {
+    list-style: none;
+    margin: 0.25rem 0 0.25rem 0.125rem;
+    padding: 0 0 0 1rem;
+    border-left: 1px solid #e0e0e0;
+  }
+
+  /* Meta branch: secondary, purple, separated by a hairline. */
+  .tree-node.meta-branch {
+    margin-top: 1.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid #e0e0e0;
+  }
+
+  .tree-node.meta-branch a,
+  .tree-node.meta-branch .tree-node a {
+    color: #7c3aed;
+  }
+
+  .tree-node.meta-branch a:hover,
+  .tree-node.meta-branch .tree-node a:hover {
+    color: #6d28d9;
+  }
+
+  .tree-node.meta-branch .tree-branch {
+    border-left-color: #ddd6fe;
+  }
+
+  .meta-note {
+    font-size: 0.8rem;
+    line-height: 1.5;
+    color: #7c3aed;
+    margin: 0.25rem 0 0;
+    max-width: 46ch;
+  }
+</style>

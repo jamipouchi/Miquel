@@ -1,16 +1,71 @@
 ---
 import { ClientRouter } from 'astro:transitions';
+import { getTitleMap } from '../lib/siteTree';
 
 interface Props {
   title: string;
+  /** Optional meta description; derived from the site tree when absent. */
+  description?: string;
+  /**
+   * Open Graph type. Defaults to 'website'; content pages can pass
+   * 'article' ([...slug].astro passes it for content pages).
+   */
+  ogType?: 'website' | 'article';
 }
 
-const { title } = Astro.props;
+const { title, description, ogType = 'website' } = Astro.props;
+
+const SITE_NAME = 'Miquel Puig Turon';
+// Single origin source: `site` in astro.config.mjs. Fail loudly at build
+// time instead of silently falling back to a hardcoded origin.
+if (!Astro.site) throw new Error('CommonHead: `site` must be set in astro.config.mjs');
+const SITE_URL = Astro.site;
+const SITE_DESCRIPTION =
+  'A tree of thoughts by Miquel Puig Turon: every article lives on a path and is meant to be read alongside its neighbours.';
+
+// Path of the page being prerendered, normalized to the site-wide
+// trailing-slash convention ('/' for home) — the same rule used for
+// comments and subscriptions.
+const rawPath = Astro.url.pathname;
+// Exact full-path match only (the prerendered 404 route reports '/404/'):
+// a loose endsWith('/404') would strip canonical/OG tags from any future
+// page whose path merely ends in "404".
+const isNotFound = rawPath.replace(/\/+$/, '') === '/404';
+// Routes/URLs always end with '/' (AGENTS.MD); home is '/'.
+const cleaned = rawPath.replace(/^\/+|\/+$/g, '');
+const path = cleaned === '' ? '/' : `/${cleaned}/`;
+const canonicalUrl = new URL(path, SITE_URL).href;
+
+// Sensible default description: explicit prop > site-tree title for this
+// path > generic site description. Home uses the generic one as-is.
+let resolvedDescription: string;
+if (description) {
+  resolvedDescription = description;
+} else if (isNotFound) {
+  resolvedDescription = 'Page not found.';
+} else if (path === '/') {
+  resolvedDescription = SITE_DESCRIPTION;
+} else {
+  const pageTitle = (await getTitleMap()).get(path.slice(1, -1));
+  resolvedDescription = pageTitle ? `${pageTitle} — ${SITE_DESCRIPTION}` : SITE_DESCRIPTION;
+}
 ---
 
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width" />
 <title>{title}</title>
+<meta name="description" content={resolvedDescription} />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+{!isNotFound && <link rel="canonical" href={canonicalUrl} />}
+<link rel="alternate" type="application/rss+xml" title={SITE_NAME} href="/rss.xml" />
+{!isNotFound && (
+  <Fragment>
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={resolvedDescription} />
+    <meta property="og:type" content={ogType} />
+    <meta property="og:url" content={canonicalUrl} />
+    <meta property="og:site_name" content={SITE_NAME} />
+  </Fragment>
+)}
 <ClientRouter />
 

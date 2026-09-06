@@ -3,6 +3,11 @@ import '../styles/global.css';
 import CommonHead from '../components/CommonHead.astro';
 import SearchModal from '../components/SearchModal.astro';
 import ModelContextTools from '../components/ModelContextTools.astro';
+import { getSiteTree } from '../lib/siteTree';
+
+// Top-level sections, real h1-derived titles from siteTree; Meta keeps its
+// purple to match the meta isolation everywhere else on the site.
+const sections = (await getSiteTree()).children;
 ---
 
 <html lang="en">
@@ -21,6 +26,21 @@ import ModelContextTools from '../components/ModelContextTools.astro';
         <li>A quantum ray hit the server rewriting the request</li>
       </ul>
       <a href="/" class="home-link">← Back to home</a>
+      <div class="at-a-glance">
+        <p class="micro-label">The site at a glance</p>
+        <ul class="glance-list">
+          {sections.map((section) => (
+            <li>
+              <a
+                href={`${section.path}/`}
+                class:list={[{ 'meta-link': section.section === 'meta' }]}
+              >
+                {section.title}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
     </article>
     <SearchModal />
     <ModelContextTools />
@@ -107,6 +127,41 @@ import ModelContextTools from '../components/ModelContextTools.astro';
         color: white !important;
         transform: translateY(-2px);
         box-shadow: 0 4px 12px rgba(0, 102, 204, 0.25);
+      }
+
+      .at-a-glance {
+        margin-top: 3rem;
+      }
+
+      .glance-list {
+        list-style: none;
+        padding: 0;
+        margin: 0.75rem 0 0;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.5rem 1.75rem;
+      }
+
+      .glance-list li {
+        margin: 0;
+        padding: 0;
+      }
+
+      .glance-list li::before {
+        content: none;
+      }
+
+      .glance-list a {
+        font-weight: 500;
+      }
+
+      .glance-list a.meta-link {
+        color: #7c3aed;
+      }
+
+      .glance-list a.meta-link:hover {
+        color: #6d28d9;
       }
 
       @media (max-width: 640px) {

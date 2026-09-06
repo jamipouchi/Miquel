@@ -3,6 +3,7 @@ import { defineConfig } from "astro/config";
 import { visit } from "unist-util-visit";
 
 export default defineConfig({
+  site: "https://miquelpuigturon.com",
   markdown: {
     rehypePlugins: [
       () => (tree) => {

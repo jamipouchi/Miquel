@@ -7040,7 +7040,7 @@ import TreeNav from '../components/TreeNav.astro';
 Perfect! I've set it up:
 
 1. **Created `/public/chat-transcript.txt`** - A placeholder file where you can paste the exported chat
-2. **Added link on `/meta` page** - "This site was built through a conversation with Claude (Anthropic's AI assistant). You can read the [full chat transcript](/chat-transcript.txt) to see how it was designed and implemented."
+2. **Added link on `/meta` page** - "This site was built through a conversation with Claude (Anthropic's AI assistant). You can read the full chat transcript to see how it was designed and implemented."
 
 Now when you export this chat, just replace the contents of `/public/chat-transcript.txt` with the actual transcript. It will be accessible at `https://miquel.<your-subdomain>.workers.dev/chat-transcript.txt` after deployment! 📝
 

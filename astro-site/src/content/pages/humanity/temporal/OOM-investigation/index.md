@@ -12,7 +12,7 @@ We run a Temporal TypeScript worker that manages long-running conversation workf
 - `reuseV8Context: true` (default)
 - `--max-old-space-size=3072`
 
-This configuration had been stable for months. It is explained in [worker configuration](../worker-configuration).
+This configuration had been stable for months. It is explained in [worker configuration](/humanity/temporal/worker-configuration/).
 
 ## The Problem
 
@@ -274,4 +274,4 @@ The base RSS dropped from ~1,200 MB to ~500 MB - the gpt-tokenizer tables were c
 
 ## Further reading
 
-After fixing the conversation worker, I investigated the same class of problem in our enrich service. That one had no single-line fix - it turned into a bundle experiment log. You can read about it in the [enrich deep dive](/humanity/temporal/oom-investigation/deep-dive).
+After fixing the conversation worker, I investigated the same class of problem in our enrich service. That one had no single-line fix - it turned into a bundle experiment log. You can read about it in the [enrich deep dive](/humanity/temporal/oom-investigation/deep-dive/).

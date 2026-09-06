@@ -4,8 +4,13 @@ import CommonHead from '../components/CommonHead.astro';
 import Footer from '../components/Footer.astro';
 import SearchModal from '../components/SearchModal.astro';
 import ModelContextTools from '../components/ModelContextTools.astro';
+import SiteTree from '../components/SiteTree.astro';
+import { getSiteTree } from '../lib/siteTree';
 
 import Content from '../content/pages/index.md';
+
+// Root of the whole site tree, rendered in full below the welcome text.
+const root = await getSiteTree();
 ---
 
 <html lang="en">
@@ -17,6 +22,18 @@ import Content from '../content/pages/index.md';
       <div class="page-body">
         <Content />
       </div>
+      <section id="site-tree" class="site-tree-section" aria-labelledby="site-tree-title">
+        <p class="micro-label">Site tree</p>
+        <h2 id="site-tree-title">The whole tree</h2>
+        <p class="site-tree-intro">
+          Everything on this site is a page in a tree: broader topics near the
+          root, specifics deeper down. The path of a page is part of its meaning.
+          <a href="/meta/">Meta explains why</a>.
+        </p>
+        <ul class="tree-root">
+          <SiteTree node={root} currentSlug="" />
+        </ul>
+      </section>
       <Footer currentSlug="index" path="/" skipComments/>
     </article>
     <SearchModal />
@@ -32,56 +49,38 @@ import Content from '../content/pages/index.md';
         background-clip: text;
       }
 
-      .home-sections {
-        list-style: none;
-        padding: 0;
-        margin-top: 2rem;
-        display: grid;
-        gap: 1rem;
+      /* Site tree — the whole site as one visible, static structure. */
+      .site-tree-section {
+        margin-top: 3.5rem;
+        padding-top: 2.5rem;
+        border-top: 1px solid #e0e0e0;
       }
 
-      .home-sections li {
+      .prose.home .site-tree-section h2 {
+        margin-top: 0.25rem;
+        margin-bottom: 0.75rem;
+      }
+
+      .site-tree-intro {
+        font-size: 0.95rem;
+        line-height: 1.7;
+        color: #555;
+        max-width: 62ch;
+        margin: 0 0 2rem;
+      }
+
+      .tree-root {
+        list-style: none;
         margin: 0;
         padding: 0;
-      }
-
-      .home-sections a {
-        display: block;
-        padding: 1.5rem 1.75rem;
-        background-color: #fff;
-        border: 2px solid #e0e0e0;
-        border-radius: 8px;
-        transition: all 0.25s ease;
-        text-decoration: none;
-      }
-
-      .home-sections a:hover {
-        border-color: #0066cc;
-        box-shadow: 0 4px 12px rgba(0, 102, 204, 0.15);
-        transform: translateY(-2px);
-      }
-
-      .section-name {
-        font-size: 1.25rem;
-        font-weight: 600;
-        color: #0066cc;
-        text-transform: capitalize;
-      }
-
-      .home-sections a:hover .section-name {
-        color: #0052a3;
+        font-size: 0.95rem;
       }
 
       @media (max-width: 640px) {
         .prose.home h1 {
           font-size: 2.25rem;
         }
-        
-        .home-sections a {
-          padding: 1.25rem 1.5rem;
-        }
       }
     </style>
   </body>
 </html>
-

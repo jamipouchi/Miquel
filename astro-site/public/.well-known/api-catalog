@@ -1,0 +1,31 @@
+{
+  "linkset": [
+    {
+      "anchor": "https://miquelpuigturon.com/.well-known/api-catalog",
+      "item": [
+        {
+          "href": "https://api.miquelpuigturon.com/mcp",
+          "type": "application/json"
+        },
+        {
+          "href": "https://api.miquelpuigturon.com/subscribe"
+        },
+        {
+          "href": "https://api.miquelpuigturon.com/contact"
+        },
+        {
+          "href": "https://api.miquelpuigturon.com/comments"
+        }
+      ]
+    },
+    {
+      "anchor": "https://api.miquelpuigturon.com/mcp",
+      "service-doc": [
+        {
+          "href": "https://miquelpuigturon.com/meta/webmcp/",
+          "type": "text/html"
+        }
+      ]
+    }
+  ]
+}

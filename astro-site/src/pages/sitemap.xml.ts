@@ -1,38 +1,20 @@
 import type { APIRoute } from 'astro';
 import { getCollection } from 'astro:content';
-import { statSync } from 'node:fs';
-import { execSync } from 'node:child_process';
 import { join } from 'node:path';
 import { EXCLUDED_SLUGS } from '../lib/siteSlugs';
-
-const BASE_URL = 'https://miquelpuigturon.com';
-
-/**
- * lastmod from the file's last git commit date. Git does not preserve
- * mtimes, so a fresh clone would otherwise mark every page as modified on
- * every build. Falls back to mtime when git is unavailable.
- */
-function lastModified(relative: string): string {
-  try {
-    const committed = execSync(`git log -1 --format=%cI -- ${JSON.stringify(relative)}`, {
-      cwd: process.cwd(),
-      stdio: ['ignore', 'pipe', 'ignore'],
-    })
-      .toString()
-      .trim();
-    if (committed) return committed;
-  } catch {
-    // no git history (CI shallow clone, detached file) — fall through
-  }
-  return statSync(join(process.cwd(), relative)).mtime.toISOString();
-}
+import { lastModified } from '../lib/lastModified';
 
 /**
  * Static sitemap with per-page <lastmod>. Cloudflare AI Search (sitemap
  * crawl mode) compares lastmod between syncs and only re-fetches pages
  * that actually changed — unchanged pages are skipped.
  */
-export const GET: APIRoute = async () => {
+export const GET: APIRoute = async ({ site }) => {
+  // Single origin source: `site` in astro.config.mjs (surfaced on the route
+  // context). Same value CommonHead, RSS and the sitemap all derive from.
+  if (!site) throw new Error('sitemap.xml: `site` must be set in astro.config.mjs');
+  const BASE_URL = site.origin;
+
   const pages = (await getCollection('pages')).filter(
     (page) => !EXCLUDED_SLUGS.has(page.slug),
   );

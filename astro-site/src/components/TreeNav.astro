@@ -1,5 +1,5 @@
 ---
-import { getCollection } from 'astro:content';
+import { getSiteTree, type SiteNode } from '../lib/siteTree';
 
 interface Props {
   currentSlug: string;
@@ -7,179 +7,114 @@ interface Props {
 
 const { currentSlug } = Astro.props;
 
-const allPages = await getCollection('pages');
+const root = await getSiteTree();
 
-// Check if we're on a meta page
-const isMetaPage = currentSlug.startsWith('meta');
+// 'index' (home) normalizes to ''; paths with slashes are accepted too.
+const normalizedSlug = currentSlug === 'index' ? '' : currentSlug.replace(/^\/+|\/+$/g, '');
 
-// Helper to get all unique folder paths from pages
-function getAllFolderPaths(parentPath: string): string[] {
-  const folders = new Set<string>();
-  
-  const prefix = parentPath ? parentPath + '/' : '';
-  const prefixLen = prefix.length;
-  
-  for (const page of allPages) {
-    if (page.slug === 'index') continue;
-    if (parentPath && !page.slug.startsWith(prefix)) continue;
-    if (!parentPath && page.slug.includes('/') && page.slug.split('/')[0] === page.slug) continue;
-    
-    const afterPrefix = parentPath ? page.slug.slice(prefixLen) : page.slug;
-    const parts = afterPrefix.split('/');
-    
-    // If there's at least one segment, that's a direct child folder or page
-    if (parts.length >= 1 && parts[0]) {
-      folders.add(parts[0]);
-    }
+function findBySlug(node: SiteNode, slug: string): SiteNode | undefined {
+  if (node.slug === slug) return node;
+  for (const child of node.children) {
+    const hit = findBySlug(child, slug);
+    if (hit) return hit;
   }
-  
-  return Array.from(folders).sort();
+  return undefined;
 }
 
-// Build a simple flat list of nodes to display
-function buildTreeNodes() {
-  const nodes: any[] = [];
-  
-  // Always show root
-  const rootPage = allPages.find(p => p.slug === 'index');
-  if (!rootPage) return nodes;
-  
-  const isCurrentRoot = currentSlug === 'index';
-  const currentParts = currentSlug === 'index' ? [] : currentSlug.split('/');
-  
-  // Add root
-  nodes.push({
-    page: rootPage,
-    slug: 'index',
-    isCurrent: isCurrentRoot,
-    isAncestor: currentParts.length > 0,
-    level: 0
+// Unknown slug: fall back to the home view of the tree.
+const current = findBySlug(root, normalizedSlug) ?? root;
+const isMetaPage = current.section === 'meta';
+
+interface NavNode {
+  node: SiteNode;
+  level: number;
+  isCurrent: boolean;
+  isAncestor: boolean;
+}
+
+// HOME, then ancestors -> siblings (current in its natural alphabetical
+// position) -> children of the current page. Titles come from the h1 of each
+// page via siteTree.
+const nodes: NavNode[] = [];
+nodes.push({
+  node: root,
+  level: 0,
+  isCurrent: current === root,
+  isAncestor: current !== root,
+});
+
+if (current === root) {
+  // At home: top-level sections, meta excluded (it lives isolated on /meta/*).
+  for (const child of root.children) {
+    if (child.section === 'meta') continue;
+    nodes.push({ node: child, level: 1, isCurrent: false, isAncestor: false });
+  }
+} else {
+  // Ancestors of the current page, root-first, home itself excluded.
+  const ancestors: SiteNode[] = [];
+  for (let p = current.parent; p && p.parent; p = p.parent) ancestors.unshift(p);
+  ancestors.forEach((ancestor, i) => {
+    nodes.push({ node: ancestor, level: i + 1, isCurrent: false, isAncestor: true });
   });
-  
-  if (isCurrentRoot) {
-    // At root: show all top-level pages as siblings (excluding meta)
-    const topLevelNames = getAllFolderPaths('').filter(name => !name.includes('meta'));
-    for (const name of topLevelNames) {
-      const topPage = allPages.find(p => p.slug === name);
-      nodes.push({
-        page: topPage,
-        slug: name,
-        isCurrent: false,
-        isAncestor: false,
-        level: 1
-      });
-    }
-  } else {
-    // Build path: ancestors -> siblings + current + children
-    for (let i = 0; i < currentParts.length; i++) {
-      const pathSoFar = currentParts.slice(0, i + 1).join('/');
-      const isCurrentLevel = i === currentParts.length - 1;
-      const parentPath = i > 0 ? currentParts.slice(0, i).join('/') : '';
-      
-      if (isCurrentLevel) {
-        // At current level: show siblings with current, and nest children under current
-        let siblingNames = getAllFolderPaths(parentPath || '');
-        // Only filter meta at the top level (when parentPath is empty)
-        if (!parentPath) {
-          if (isMetaPage) {
-            siblingNames = siblingNames.filter(name => name.startsWith('meta'));
-          } else {
-            siblingNames = siblingNames.filter(name => !name.startsWith('meta'));
-          }
-        }
 
-        // Move the current item to the end for better visual hierarchy
-        const currentName = currentParts[i];
-        const currentIndex = siblingNames.indexOf(currentName);
-        if (currentIndex > -1) {
-          siblingNames.splice(currentIndex, 1);
-          siblingNames.push(currentName);
-        }
+  // Siblings: the parent's children in stable alphabetical (tree) order — the
+  // current page stays in its natural position. Meta filtering only applies at
+  // the top level, matching the site-wide meta isolation.
+  const parent = current.parent ?? root;
+  let siblings = parent.children;
+  if (!parent.parent) {
+    siblings = siblings.filter((n) =>
+      isMetaPage ? n.section === 'meta' : n.section !== 'meta',
+    );
+  }
 
-        const childNames = getAllFolderPaths(currentSlug);
-        
-        for (const name of siblingNames) {
-          const siblingSlug = parentPath ? `${parentPath}/${name}` : name;
-          const siblingPage = allPages.find(p => p.slug === siblingSlug);
-          const isCurrent = siblingSlug === currentSlug;
-          
-          // Add the sibling/current node
-          nodes.push({
-            page: siblingPage,
-            slug: siblingSlug,
-            isCurrent,
-            isAncestor: false,
-            level: i + 1
-          });
-          
-          // If this is the current node, immediately add its children
-          if (isCurrent) {
-            for (const childName of childNames) {
-              const childSlug = `${currentSlug}/${childName}`;
-              const childPage = allPages.find(p => p.slug === childSlug);
-              nodes.push({
-                page: childPage,
-                slug: childSlug,
-                isCurrent: false,
-                isAncestor: false,
-                level: i + 2
-              });
-            }
-          }
-        }
-      } else {
-        // Ancestor: just show this one node in the path
-        const ancestorPage = allPages.find(p => p.slug === pathSoFar);
-        nodes.push({
-          page: ancestorPage,
-          slug: pathSoFar,
-          isCurrent: false,
-          isAncestor: true,
-          level: i + 1
-        });
+  const siblingLevel = ancestors.length + 1;
+  for (const sibling of siblings) {
+    nodes.push({
+      node: sibling,
+      level: siblingLevel,
+      isCurrent: sibling === current,
+      isAncestor: false,
+    });
+
+    // Children nest directly under the current page.
+    if (sibling === current) {
+      for (const child of current.children) {
+        nodes.push({ node: child, level: siblingLevel + 1, isCurrent: false, isAncestor: false });
       }
     }
   }
-  
-  return nodes;
 }
 
-const treeNodes = buildTreeNodes();
-
-// Render each node with proper naming
-const renderedNodes = treeNodes.map(node => {
-  let name = node.slug === 'index' ? 'HOME' : node.slug.split('/').pop()?.replace(/-/g, ' ');
-  
-  // Check if this page has children in the actual collection
-  const hasChildren = getAllFolderPaths(node.slug).length > 0;
-  
-  // Capitalize branch pages (pages with children), but not home (already all caps)
-  if (hasChildren && node.slug !== 'index') {
-    name = name.charAt(0).toUpperCase() + name.slice(1);
-  }
-  
-  const url = node.slug === 'index' ? '/' : `/${node.slug}/`;
-  
-  return {
-    ...node,
-    name,
-    url
-  };
-});
+const hrefFor = (node: SiteNode): string => (node.slug === '' ? '/' : `${node.path}/`);
+// The root keeps its all-caps HOME label (AGENTS.MD convention); every other
+// node uses its real h1-derived title.
+const labelFor = (node: SiteNode): string => (node.slug === '' ? 'HOME' : node.title);
+const vtNameFor = (node: SiteNode): string =>
+  `nav-${node.slug.replace(/[^a-z0-9]+/gi, '-')}`;
 ---
 
-<nav class="tree-nav" class:list={{ 'meta-nav': isMetaPage }}>
+<nav class="tree-nav" class:list={{ 'meta-nav': isMetaPage }} aria-label="Site tree">
+  <div class="tree-nav-head">
+    <p class="micro-label">You are here</p>
+    {current.depth > 0 && (
+      <a class="tree-full-link" href="/#site-tree">Full tree ↑</a>
+    )}
+  </div>
+  <p class="tree-help">The current page among its siblings and children.</p>
   <ul class="tree-list">
-    {renderedNodes.map((node) => (
-      <li 
-        class:list={[
-          'tree-item',
-          { 'current': node.isCurrent },
-          { 'ancestor': node.isAncestor }
-        ]}
-        style={`--indent: ${node.level}; view-transition-name: nav-${node.slug.replace(/\//g, '-')};`}
+    {nodes.map(({ node, level, isCurrent, isAncestor }) => (
+      <li
+        class:list={['tree-item', { current: isCurrent, ancestor: isAncestor }]}
+        style={`--indent: ${level}; view-transition-name: ${vtNameFor(node)};`}
       >
-        <a href={node.url}>{node.name}</a>
+        <a
+          href={hrefFor(node)}
+          title={node.title}
+          aria-current={isCurrent ? 'page' : undefined}
+        >
+          {labelFor(node)}
+        </a>
       </li>
     ))}
   </ul>
@@ -188,6 +123,33 @@ const renderedNodes = treeNodes.map(node => {
 <style>
   .tree-nav {
     margin: 0;
+    /* Grid child (footer columns): without this, the nowrap labels' min
+       width would inflate the grid track past the viewport. */
+    min-width: 0;
+  }
+
+  .tree-nav-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .tree-full-link {
+    font-size: 0.75rem;
+    color: #0066cc;
+    white-space: nowrap;
+  }
+
+  .tree-full-link:hover {
+    color: #0052a3;
+  }
+
+  .tree-help {
+    font-size: 0.8rem;
+    line-height: 1.5;
+    color: #666;
+    margin: 0 0 0.75rem;
   }
 
   .tree-list {
@@ -199,16 +161,23 @@ const renderedNodes = treeNodes.map(node => {
   }
 
   .tree-item {
+    position: relative;
     margin: 0;
+    /* 0.75rem base leaves room for the current-page rule at every depth. */
     padding: 0.35rem 0;
-    padding-left: calc(var(--indent) * 1.5rem);
+    padding-left: calc(0.75rem + var(--indent) * 1.5rem);
     transition: all 0.3s ease;
   }
 
   .tree-item a {
+    display: block;
     color: #666;
     text-decoration: none;
     transition: color 0.2s ease;
+    /* Graceful truncation; the full title stays in the title attribute. */
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
   }
 
   .tree-item a:hover {
@@ -216,14 +185,26 @@ const renderedNodes = treeNodes.map(node => {
     text-decoration: none;
   }
 
+  .tree-item.ancestor a {
+    color: #333;
+    font-weight: 500;
+  }
+
   .tree-item.current a {
     color: #0066cc;
     font-weight: 600;
   }
 
-  .tree-item.ancestor a {
-    color: #333;
-    font-weight: 500;
+  /* Visible marker for the current page: a short rule left of the label. */
+  .tree-item.current::before {
+    content: '';
+    position: absolute;
+    left: calc(var(--indent) * 1.5rem);
+    top: 0.45rem;
+    bottom: 0.45rem;
+    width: 2px;
+    border-radius: 1px;
+    background: #0066cc;
   }
 
   /* Special styling for meta pages */
@@ -240,9 +221,38 @@ const renderedNodes = treeNodes.map(node => {
     font-weight: 600;
   }
 
+  .tree-nav.meta-nav .tree-item.current::before {
+    background: #7c3aed;
+  }
+
   .tree-nav.meta-nav .tree-item.ancestor a {
-    color: #8b5cf6;
+    color: #7c3aed;
     font-weight: 500;
   }
-</style>
 
+  .tree-nav.meta-nav .tree-full-link {
+    color: #7c3aed;
+  }
+
+  .tree-nav.meta-nav .tree-full-link:hover {
+    color: #6d28d9;
+  }
+
+  /* Mobile: single-line ellipsis becomes wrap, so nothing forces the page
+     wider than the viewport. Above this breakpoint the ellipsis stays. */
+  @media (max-width: 767px) {
+    .tree-item a {
+      white-space: normal;
+      overflow-wrap: break-word;
+    }
+  }
+
+  /* Touch targets: ~30px tall links are hard to hit on phones. */
+  @media (max-width: 767px), (pointer: coarse) {
+    .tree-item a {
+      min-height: 40px;
+      display: flex;
+      align-items: center;
+    }
+  }
+</style>

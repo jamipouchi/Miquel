@@ -3,7 +3,7 @@ import Tooltip from '../../../../../../components/Tooltip.astro'
 # Worker configuration (_Node_) > Deep dive
 
 This article is a deep dive into the worker configuration and the many experiments I have run to understand it. \
-It's intended for those who want to understand the internals of Worker configuration. If you're looking for a simpler setup or just want to know _why_ I ran these tests, start with the [main article](/humanity/temporal/worker-configuration).
+It's intended for those who want to understand the internals of Worker configuration. If you're looking for a simpler setup or just want to know _why_ I ran these tests, start with the [main article](/humanity/temporal/worker-configuration/).
 
 This is not a definitive guide. Some parts remain unclear, but it documents what I've learned so far and where the documentation or defaults can be misleading.
 
@@ -98,7 +98,7 @@ _ELU_ ([event loop utilization](https://nodesource.com/blog/event-loop-utilizati
 
 ### Slot grants ignore task type cost
 
-The issue ties to the [Worker threading model](/humanity/temporal/worker-configuration#threading-model).
+The issue ties to the [Worker threading model](/humanity/temporal/worker-configuration/#threading-model).
 
 It's NOT relevant in single-vCPU instances (where the main and worker threads share the same core) but becomes noticeable in multi-core setups.
 

@@ -1,8 +1,11 @@
 {
     "name": "miquel",
-    "compatibility_date": "2025-10-24",
+    "main": "./src/worker.ts",
+    "compatibility_date": "2025-10-11",
     "assets": {
         "directory": "./dist",
-        "not_found_handling": "404-page"
+        "binding": "ASSETS",
+        "not_found_handling": "404-page",
+        "run_worker_first": true
     }
 }

@@ -1,4 +1,6 @@
 ---
+import { getBreadcrumb, getChildren, getTitleMap } from '../lib/siteTree';
+
 interface Props {
   path: string;
 }
@@ -6,140 +8,175 @@ const { path } = Astro.props;
 
 const baseUrl = import.meta.env.DEV ? 'http://localhost:8787' : 'https://api.miquelpuigturon.com';
 
-// Generate path hierarchy options
-function generatePathOptions(fullPath: string): Array<{ value: string; label: string }> {
-  const segments = fullPath.split('/').filter(Boolean);
-  const options: Array<{ value: string; label: string }> = [
-    { value: '/', label: '/ (root - all updates)' }
-  ];
+type ScopeKind = 'all' | 'branch' | 'article';
 
-  let currentPath = '';
-  for (const segment of segments) {
-    currentPath += '/' + segment;
-    options.push({ value: currentPath, label: currentPath });
-  }
-
-  return options;
+interface ScopeOption {
+  /** Path POSTed to /subscribe; '/' means the whole site. */
+  value: string;
+  /** Human label shown in the picker, e.g. "Humanity → Temporal". */
+  label: string;
+  kind: ScopeKind;
 }
 
-// Determine default path based on current location
-function getDefaultPath(fullPath: string): string {
-  const segments = fullPath.split('/').filter(Boolean);
+const EVERYTHING_LABEL = 'Everything — the whole site';
+const EVERYTHING_LINE = "You'll be emailed when anything on the site is added or significantly updated.";
 
-  // If at root or first level, use current path
-  if (segments.length <= 1) {
-    return '/' + (segments[0] ?? '');
+// Subscription paths carry no trailing slash ('/' = the whole site).
+const cleanPath = path.replace(/\/+$/, '');
+
+// Default scope is always Everything; narrower options follow.
+const scopeOptions: ScopeOption[] = [{ value: '/', label: EVERYTHING_LABEL, kind: 'all' }];
+
+if (cleanPath !== '') {
+  const segments = cleanPath.slice(1).split('/');
+  const crumbs = await getBreadcrumb(cleanPath); // [] when the path isn't in the tree
+  const titles = await getTitleMap();
+  const known = crumbs.length > 0 && crumbs[crumbs.length - 1].path === cleanPath;
+
+  // One option per ancestor branch; labels accumulate with ' → ' separators.
+  const ancestorTitles: string[] = [];
+  for (let i = 0; i < segments.length - 1; i++) {
+    const slug = segments.slice(0, i + 1).join('/');
+    const title = crumbs.find((crumb) => crumb.path === '/' + slug)?.title ?? titles.get(slug);
+    if (!title) break; // prefix isn't a real page; stop narrowing there
+    ancestorTitles.push(title);
+    scopeOptions.push({ value: '/' + slug, label: ancestorTitles.join(' → '), kind: 'branch' });
   }
-  
-  // Otherwise, use second level
-  return '/' + segments.slice(0, 2).join('/');
+
+  if (known) {
+    const selfTitle = crumbs[crumbs.length - 1].title;
+    if (ancestorTitles.length === 0) {
+      // Top-level section page: Everything + that section.
+      scopeOptions.push({ value: cleanPath, label: selfTitle, kind: 'branch' });
+    } else {
+      const isLeaf = (await getChildren(cleanPath)).length === 0;
+      scopeOptions.push(
+        isLeaf
+          ? { value: cleanPath, label: 'Just this article', kind: 'article' }
+          : { value: cleanPath, label: [...ancestorTitles, selfTitle].join(' → '), kind: 'branch' }
+      );
+    }
+  } else {
+    // Path unknown to the tree (e.g. 404): the whole site or just this URL.
+    scopeOptions.push({ value: cleanPath, label: 'Just this page', kind: 'article' });
+  }
 }
 
-const pathOptions = generatePathOptions(path);
-const defaultPath = getDefaultPath(path);
+// Single scope (home): plain form, no selector.
+const isSingleScope = scopeOptions.length === 1;
 ---
 
 <div class="subscribe-container">
   <div class="subscribe-header">
-    <h3>Subscribe to Updates</h3>
-    <button 
-      type="button" 
-      class="help-button" 
-      id="help-button"
+    <h3 class="micro-label">Subscribe</h3>
+    <button
+      type="button"
+      class="help-button"
+      id="subscribe-help"
       aria-label="How subscriptions work"
+      aria-haspopup="dialog"
       title="How subscriptions work"
     >
       ?
     </button>
   </div>
-  
-  <div class="path-selector-container" data-default-path={defaultPath}>
-    <p class="subscribe-description">
-      Get notified for updates in <strong id="path-selector-trigger" class="path-trigger" role="button" tabindex="0" aria-label="Click to select path"><span id="selected-path-display">{defaultPath}</span><svg class="dropdown-icon" width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true"><path d="M6 8L2 4h8z"/></svg></strong> or any subpaths.
-    </p>
 
-    <div class="path-selector-dropdown" id="path-selector-dropdown" role="listbox" aria-label="Select path to subscribe to">
-      {pathOptions.map(option => (
-        <button
-          type="button"
-          class:list={['path-option', { selected: option.value === defaultPath }]}
-          data-path={option.value}
-          role="option"
-        >
-          {option.label}
-        </button>
-      ))}
-    </div>
-  </div>
-  
+  {
+    isSingleScope ? (
+      <p class="scope-line" id="subscribe-scope-line">
+        {EVERYTHING_LINE}
+      </p>
+    ) : (
+      <div class="scope-picker">
+        <label class="visually-hidden" for="subscribe-scope">
+          What to subscribe to
+        </label>
+        <select id="subscribe-scope" class="scope-select" aria-describedby="subscribe-scope-line">
+          {scopeOptions.map((option) => (
+            <option value={option.value} data-kind={option.kind} data-label={option.label} selected={option.value === '/'}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <p class="scope-line" id="subscribe-scope-line">
+          {EVERYTHING_LINE}
+        </p>
+      </div>
+    )
+  }
+
   <form id="subscribe-form" class="subscribe-form" method="post" data-base-url={baseUrl}>
-    <input 
-      type="email" 
-      id="email-input"
-      name="email" 
-      placeholder="your@email.com" 
-      required 
+    <input
+      type="email"
+      id="subscribe-email"
+      name="email"
+      placeholder="your@email.com"
+      required
+      autocomplete="email"
       aria-label="Email address"
       class="email-input"
     />
-    <button type="submit" id="subscribe-button" class="subscribe-button">
-      Subscribe
-    </button>
+    <button type="submit" id="subscribe-button" class="subscribe-button">Subscribe to everything</button>
   </form>
-  
-  <div id="subscribe-message" class="subscribe-message message" role="alert" aria-live="polite"></div>
+
+  <p class="rss-line">
+    Prefer a feed? Everything, in full, <a href="/rss.xml">via RSS</a>.
+  </p>
+
+  <div id="subscribe-message" class="subscribe-message message" role="alert"></div>
 </div>
 
 <!-- Modal -->
-<div id="subscribe-modal" class="subscribe-modal modal" role="dialog" aria-labelledby="modal-title" aria-hidden="true">
-  <div class="modal-overlay" id="modal-overlay"></div>
+<div
+  id="subscribe-modal"
+  class="subscribe-modal modal"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="subscribe-modal-title"
+  aria-hidden="true"
+>
+  <div class="modal-overlay" id="subscribe-modal-overlay"></div>
   <div class="modal-content">
     <div class="modal-header">
-      <h2 id="modal-title">How Subscriptions Work</h2>
-      <button type="button" class="modal-close" id="modal-close" aria-label="Close modal">&times;</button>
+      <h2 id="subscribe-modal-title">How subscriptions work</h2>
+      <button type="button" class="modal-close" id="subscribe-modal-close" aria-label="Close dialog">&times;</button>
     </div>
-    
+
     <div class="modal-body">
       <section>
-        <h3>📧 What happens when you subscribe?</h3>
-        <p>Your email is encrypted and stored securely in a Cloudflare D1 database associated with the specific path you're subscribing to.</p>
+        <h3>What you'll get</h3>
+        <p>One email when content in your chosen scope is added or significantly updated. Nothing else.</p>
+        <p>
+          Prefer a feed reader? The same everything, in full, is always at <code>/rss.xml</code>.
+        </p>
       </section>
 
       <section>
-        <h3>🌳 Hierarchical subscriptions</h3>
-        <p>Subscriptions follow a path-based system. If you subscribe to <code>/humanity</code>, you'll be notified about:</p>
-        <ul>
-          <li>Changes to <code>/humanity</code> itself</li>
-          <li>Changes to <code>/humanity/temporal</code></li>
-          <li>Changes to <code>/humanity/temporal/scaling-workers</code></li>
-          <li>Any other pages under <code>/humanity</code></li>
-        </ul>
-        <p>But you won't be notified about changes to <code>/self</code> or <code>/others</code>.</p>
+        <h3>Scope</h3>
+        <p>
+          <strong>Everything</strong> (the whole site) is the default. You can narrow to a single branch — e.g.
+          Humanity → Temporal — or to a single article. A branch covers that page and everything under it.
+          To subscribe to a different branch, open any page inside it — the options follow where you are.
+        </p>
       </section>
 
       <section>
-        <h3>📬 Multiple subscriptions</h3>
-        <p>You can subscribe to multiple paths with the same email.</p>
+        <h3>Multiple subscriptions</h3>
+        <p>Subscribe the same email to as many scopes as you like.</p>
       </section>
 
       <section>
-        <h3>🔒 Privacy & storage</h3>
-        <p>Your email is encrypted and stored in a Cloudflare D1 database. Only used for sending notifications.</p>
+        <h3>Privacy &amp; storage</h3>
+        <p>Your email is stored encrypted (AES-GCM) in a Cloudflare D1 database and is only used to send these notifications.</p>
       </section>
 
       <section>
-        <h3>📨 When will I receive emails?</h3>
-        <p>You'll receive an email when new content is published or significantly updated in your subscribed path.</p>
-      </section>
-
-      <section>
-        <h3>🚫 Unsubscribing</h3>
-        <p>Email me at <a href="mailto:miquel@miquelpuigturon.com">miquel@miquelpuigturon.com</a> if you no longer want notifications.</p>
+        <h3>Unsubscribing</h3>
+        <p>Email <a href="mailto:miquel@miquelpuigturon.com">miquel@miquelpuigturon.com</a> and you'll be removed.</p>
       </section>
     </div>
   </div>
 </div>
-
 
 <style>
   .subscribe-container {
@@ -150,15 +187,18 @@ const defaultPath = getDefaultPath(path);
   .subscribe-header {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 0.5rem;
     margin-bottom: 0.5rem;
   }
 
-  .subscribe-header h3 {
+  .micro-label {
     margin: 0;
-    font-size: 1.1rem;
-    color: #333;
+    font-size: 0.7rem;
     font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #555;
   }
 
   .help-button {
@@ -168,190 +208,156 @@ const defaultPath = getDefaultPath(path);
     width: 20px;
     height: 20px;
     border-radius: 50%;
-    background-color: #0066cc;
-    color: white;
-    border: none;
-    font-size: 0.75rem;
-    font-weight: bold;
-    cursor: pointer;
-    transition: background-color 0.2s, transform 0.2s;
+    border: 1px solid #e0e0e0;
+    background: transparent;
+    color: #0066cc;
+    font-size: 0.7rem;
+    font-weight: 600;
     line-height: 1;
     padding: 0;
+    cursor: pointer;
+    transition: border-color 0.2s, background-color 0.2s;
   }
 
   .help-button:hover {
-    background-color: #0052a3;
-    transform: scale(1.1);
+    border-color: #0066cc;
+    background-color: rgba(0, 102, 204, 0.06);
   }
 
-  .path-selector-container {
-    position: relative;
-    margin-bottom: 1rem;
-  }
-
-  .subscribe-description {
-    margin: 0;
-    font-size: 0.85rem;
-    color: #666;
-    line-height: 1.4;
-  }
-
-  .path-trigger {
-    color: #0066cc;
-    font-family: monospace;
-    font-size: 0.9em;
-    cursor: pointer;
-    padding: 0.1rem 0.25rem;
-    border-radius: 3px;
-    transition: background-color 0.2s;
-    word-break: break-word;
-    overflow-wrap: break-word;
-    user-select: none;
-  }
-
-  .path-trigger:hover {
-    background-color: rgba(0, 102, 204, 0.1);
-  }
-
-  .path-trigger:focus {
+  .help-button:focus-visible {
     outline: 2px solid #0066cc;
     outline-offset: 2px;
-    background-color: rgba(0, 102, 204, 0.1);
   }
 
-  .dropdown-icon {
-    display: inline;
-    vertical-align: baseline;
-    margin-left: 0.2em;
-    transition: transform 0.2s;
+  .scope-picker {
+    margin-bottom: 0.25rem;
   }
 
-  .path-trigger.open .dropdown-icon {
-    transform: rotate(180deg);
-  }
-
-  .path-selector-dropdown {
-    display: none;
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    margin-top: 0.5rem;
-    background: white;
-    border: 1px solid #d0d0d0;
-    border-radius: 6px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    max-height: 250px;
-    overflow-y: auto;
-    z-index: 100;
-  }
-
-  .path-selector-dropdown.show {
-    display: block;
-  }
-
-  .path-selector-dropdown.show-upward {
-    top: auto;
-    bottom: 100%;
-    margin-top: 0;
-    margin-bottom: 0.5rem;
-  }
-
-  .path-option {
-    display: block;
+  .scope-select {
     width: 100%;
-    padding: 0.65rem 0.85rem;
-    text-align: left;
-    background: none;
-    border: none;
-    border-bottom: 1px solid #f0f0f0;
+    padding: 0.45rem 0.6rem;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    background-color: #fff;
+    font-family: inherit;
+    font-size: 0.9rem;
+    color: #1a1a1a;
     cursor: pointer;
-    font-family: monospace;
-    font-size: 0.85rem;
-    color: #333;
-    transition: background-color 0.15s;
+    transition: border-color 0.2s;
   }
 
-  .path-option:last-child {
-    border-bottom: none;
+  .scope-select:hover {
+    border-color: #d0d0d0;
   }
 
-  .path-option:hover {
-    background-color: #f5f5f5;
+  .scope-select:focus-visible {
+    outline: 2px solid #0066cc;
+    outline-offset: 2px;
   }
 
-  .path-option:focus {
-    outline: none;
-    background-color: rgba(0, 102, 204, 0.1);
+  .scope-line {
+    margin: 0.4rem 0 0.75rem;
+    font-size: 0.8rem;
+    line-height: 1.5;
+    color: #666;
   }
 
-  .path-option.selected {
-    background-color: rgba(0, 102, 204, 0.15);
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  /* Quiet RSS discoverability line, styled like the scope/hint text. */
+  .rss-line {
+    margin: 0.6rem 0 0;
+    font-size: 0.8rem;
+    line-height: 1.5;
+    color: #666;
+  }
+
+  .rss-line a {
     color: #0066cc;
-    font-weight: 600;
   }
 
-  form {
+  .rss-line a:hover {
+    color: #0052a3;
+  }
+
+  .subscribe-form {
     display: flex;
     gap: 0.5rem;
     flex-wrap: nowrap;
-    background: white;
-    border: 1px solid #d0d0d0;
+    background: #fff;
+    border: 1px solid #e0e0e0;
     border-radius: 6px;
     padding: 4px;
     transition: border-color 0.2s, box-shadow 0.2s;
   }
 
-  form:focus-within {
+  .subscribe-form:focus-within {
     border-color: #0066cc;
-    box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+    box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.08);
   }
 
-  input[type="email"] {
+  .email-input {
     flex: 1;
     min-width: 0;
-    padding: 0.6rem 0.75rem;
+    padding: 0.55rem 0.7rem;
     border: none;
     background: transparent;
+    font-family: inherit;
     font-size: 0.95rem;
-    color: #333;
+    color: #1a1a1a;
   }
 
-  input[type="email"]::placeholder {
+  .email-input::placeholder {
     color: #999;
   }
 
-  input[type="email"]:focus {
+  .email-input:focus {
     outline: none;
   }
 
-  input[type="email"]:disabled {
+  .email-input:disabled {
     opacity: 0.6;
     cursor: not-allowed;
   }
 
-  #subscribe-button {
-    padding: 0.6rem 1.25rem;
+  .subscribe-button {
+    padding: 0.55rem 1.1rem;
     background-color: #0066cc;
-    color: white;
+    color: #fff;
     border: none;
     border-radius: 4px;
+    font-family: inherit;
     font-size: 0.9rem;
     font-weight: 600;
+    white-space: nowrap;
     cursor: pointer;
     transition: background-color 0.2s, transform 0.1s;
-    white-space: nowrap;
   }
 
-  #subscribe-button:hover:not(:disabled) {
+  .subscribe-button:hover:not(:disabled) {
     background-color: #0052a3;
   }
 
-  #subscribe-button:active:not(:disabled) {
+  .subscribe-button:active:not(:disabled) {
     transform: scale(0.98);
   }
 
-  #subscribe-button:disabled {
+  .subscribe-button:focus-visible {
+    outline: 2px solid #0052a3;
+    outline-offset: 2px;
+  }
+
+  .subscribe-button:disabled {
     background-color: #6c757d;
     cursor: not-allowed;
   }
@@ -362,7 +368,8 @@ const defaultPath = getDefaultPath(path);
     border-radius: 4px;
     font-size: 0.85rem;
     display: none;
-    line-height: 1.4;
+    line-height: 1.5;
+    white-space: pre-line;
   }
 
   .message.show {
@@ -411,20 +418,21 @@ const defaultPath = getDefaultPath(path);
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-    max-width: 600px;
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+    max-width: 560px;
     width: 90%;
     max-height: 85vh;
     overflow-y: auto;
-    animation: modalSlideIn 0.3s ease-out;
+    animation: modalSlideIn 0.2s ease-out;
   }
 
   @keyframes modalSlideIn {
     from {
       opacity: 0;
-      transform: translate(-50%, -45%);
+      transform: translate(-50%, -47%);
     }
     to {
       opacity: 1;
@@ -436,24 +444,25 @@ const defaultPath = getDefaultPath(path);
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1.5rem 2rem;
+    padding: 1.25rem 1.75rem;
     border-bottom: 1px solid #e0e0e0;
     position: sticky;
     top: 0;
-    background: white;
-    border-radius: 12px 12px 0 0;
+    background: #fff;
+    border-radius: 8px 8px 0 0;
   }
 
   .modal-header h2 {
     margin: 0;
-    font-size: 1.5rem;
-    color: #333;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #000;
   }
 
   .modal-close {
     background: none;
     border: none;
-    font-size: 2rem;
+    font-size: 1.75rem;
     line-height: 1;
     color: #666;
     cursor: pointer;
@@ -469,15 +478,20 @@ const defaultPath = getDefaultPath(path);
 
   .modal-close:hover {
     background-color: #f0f0f0;
-    color: #333;
+    color: #000;
+  }
+
+  .modal-close:focus-visible {
+    outline: 2px solid #0066cc;
+    outline-offset: 2px;
   }
 
   .modal-body {
-    padding: 2rem;
+    padding: 1.75rem;
   }
 
   .modal-body section {
-    margin-bottom: 2rem;
+    margin-bottom: 1.5rem;
   }
 
   .modal-body section:last-child {
@@ -485,54 +499,51 @@ const defaultPath = getDefaultPath(path);
   }
 
   .modal-body h3 {
-    margin: 0 0 0.75rem 0;
-    font-size: 1.1rem;
-    color: #333;
+    margin: 0 0 0.4rem 0;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #555;
   }
 
   .modal-body p {
-    margin: 0 0 0.75rem 0;
+    margin: 0;
     line-height: 1.6;
-    color: #555;
+    color: #444;
   }
 
-  .modal-body p:last-child {
-    margin-bottom: 0;
+  .modal-body section p + p {
+    margin-top: 0.4rem;
   }
 
   .modal-body code {
-    background-color: #f5f5f5;
-    padding: 0.2em 0.4em;
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+    font-size: 0.85em;
+    background: #f4f4f4;
+    border: 1px solid #e0e0e0;
     border-radius: 3px;
-    font-family: monospace;
-    font-size: 0.9em;
-    color: #0066cc;
+    padding: 0.05rem 0.3rem;
   }
 
-  .modal-body ul {
-    margin: 0.5rem 0;
-    padding-left: 1.5rem;
-  }
-
-  .modal-body li {
-    margin: 0.5rem 0;
-    line-height: 1.6;
-    color: #555;
+  .modal-body strong {
+    font-weight: 600;
+    color: #1a1a1a;
   }
 
   @media (max-width: 640px) {
-    form {
+    .subscribe-form {
       flex-direction: column;
       padding: 6px;
     }
 
-    input[type="email"] {
-      padding: 0.75rem;
+    .email-input {
+      padding: 0.7rem;
     }
 
-    #subscribe-button {
+    .subscribe-button {
       width: 100%;
-      padding: 0.75rem 1.25rem;
+      padding: 0.7rem 1.1rem;
     }
 
     .modal-content {
@@ -541,36 +552,72 @@ const defaultPath = getDefaultPath(path);
     }
 
     .modal-header {
-      padding: 1.25rem 1.5rem;
-    }
-
-    .modal-header h2 {
-      font-size: 1.25rem;
+      padding: 1.1rem 1.4rem;
     }
 
     .modal-body {
-      padding: 1.5rem;
+      padding: 1.4rem;
     }
   }
 </style>
 
-<script is:inline>
-  const initSubscribeForm = () => {
+  <script is:inline>
+    // Same background-inert technique SearchModal uses while its dialog is
+    // open, adapted for this modal's nested position (it is not a direct
+    // child of <body>): walk the modal's ancestor chain and inert every
+    // off-chain sibling subtree, so the backdrop is inert without inerting
+    // the modal itself (inert inherits).
+    function setBackdropInert(modal, on) {
+      var node = modal;
+      while (node && node !== document.body) {
+        var parent = node.parentElement;
+        if (!parent) break;
+        Array.prototype.forEach.call(parent.children, function (sibling) {
+          if (sibling === node) return;
+          if (on) sibling.setAttribute('inert', '');
+          else sibling.removeAttribute('inert');
+        });
+        node = parent;
+      }
+    }
+
+    // Resolves the modal at call time (the DOM is fresh after each view
+    // transition). Restores focus to the '?' trigger on close.
+    function closeSubscribeModal() {
+      var modal = document.getElementById('subscribe-modal');
+      if (!modal || !modal.classList.contains('show')) return;
+      modal.classList.remove('show');
+      modal.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+      setBackdropInert(modal, false);
+      var trigger = document.getElementById('subscribe-help');
+      if (trigger) trigger.focus();
+    }
+
+    // Escape closes the help modal. Bound exactly once per session: this
+    // inline script re-runs on every page, so an unguarded document-level
+    // listener would accumulate across view transitions.
+    if (!window.__subscribeEscapeBound) {
+      window.__subscribeEscapeBound = true;
+      document.addEventListener('keydown', function (e) {
+        if (e.key !== 'Escape') return;
+        closeSubscribeModal();
+      });
+    }
+
+    const initSubscribeForm = () => {
     const form = document.getElementById('subscribe-form');
-    const emailInput = document.getElementById('email-input');
+    const emailInput = document.getElementById('subscribe-email');
     const submitButton = document.getElementById('subscribe-button');
     const messageDiv = document.getElementById('subscribe-message');
-    const pathTrigger = document.getElementById('path-selector-trigger');
-    const pathDisplay = document.getElementById('selected-path-display');
-    const pathDropdown = document.getElementById('path-selector-dropdown');
-    const pathContainer = document.querySelector('.path-selector-container');
-
+    const scopeSelect = document.getElementById('subscribe-scope');
+    const scopeLine = document.getElementById('subscribe-scope-line');
     const modal = document.getElementById('subscribe-modal');
-    const helpButton = document.getElementById('help-button');
-    const modalClose = document.getElementById('modal-close');
-    const modalOverlay = document.getElementById('modal-overlay');
+    const helpButton = document.getElementById('subscribe-help');
+    const modalClose = document.getElementById('subscribe-modal-close');
+    const modalOverlay = document.getElementById('subscribe-modal-overlay');
 
-    if (!form || !emailInput || !submitButton || !messageDiv || !pathTrigger || !pathDisplay || !pathDropdown || !pathContainer || !modal || !helpButton || !modalClose || !modalOverlay) return;
+    if (!form || !emailInput || !submitButton || !messageDiv || !modal || !helpButton || !modalClose || !modalOverlay) return;
 
     // Prevent reinitialization - check if already initialized
     if (form.dataset.initialized === 'true') return;
@@ -580,100 +627,47 @@ const defaultPath = getDefaultPath(path);
     modal.classList.remove('show');
     modal.setAttribute('aria-hidden', 'true');
 
-    // Initialize with default path
-    let selectedPath = pathContainer.dataset.defaultPath || '';
+    const BUTTON_LABELS = {
+      all: 'Subscribe to everything',
+      branch: 'Subscribe to this branch',
+      article: 'Subscribe to this article'
+    };
 
-    // Enable/disable subscribe button based on path selection
-    function updateButtonState() {
-      const hasPath = selectedPath !== '';
-      submitButton.disabled = !hasPath;
-
-      if (!hasPath) {
-        submitButton.title = 'Please select a path first';
-      } else {
-        submitButton.title = '';
+    function currentScope() {
+      if (!scopeSelect || scopeSelect.selectedIndex < 0) {
+        // Single-scope UI (home) or nothing picked yet: default is everything.
+        return { value: '/', kind: 'all', label: 'Everything — the whole site' };
       }
+      const option = scopeSelect.options[scopeSelect.selectedIndex];
+      return {
+        value: option.value,
+        kind: option.dataset.kind || 'branch',
+        label: option.dataset.label || option.textContent || option.value
+      };
     }
 
-    // Initialize button state
-    updateButtonState();
-
-    // Toggle dropdown
-    function toggleDropdown() {
-      const isOpen = pathDropdown.classList.contains('show');
-      if (isOpen) {
-        closeDropdown();
-      } else {
-        openDropdown();
+    function scopeLineText(scope) {
+      if (scope.kind === 'article') {
+        return "You'll be emailed when this article is added or significantly updated.";
       }
+      if (scope.kind === 'branch') {
+        return "You'll be emailed when anything under " + scope.label + ' is added or significantly updated.';
+      }
+      return "You'll be emailed when anything on the site is added or significantly updated.";
     }
 
-    function openDropdown() {
-      pathDropdown.classList.add('show');
-      pathDropdown.classList.add('show-upward');
-      pathTrigger.classList.add('open');
+    function updateScopeUI() {
+      const scope = currentScope();
+      submitButton.textContent = BUTTON_LABELS[scope.kind] || BUTTON_LABELS.all;
+      if (scopeLine) scopeLine.textContent = scopeLineText(scope);
     }
 
-    function closeDropdown() {
-      pathDropdown.classList.remove('show');
-      pathDropdown.classList.remove('show-upward');
-      pathTrigger.classList.remove('open');
-    }
-
-    // Handle path selection
-    function selectPath(path) {
-      selectedPath = path;
-      pathDisplay.textContent = path;
-
-      // Update selected state in dropdown
-      const allOptions = pathDropdown.querySelectorAll('.path-option');
-      allOptions.forEach(opt => {
-        if (opt.dataset.path === path) {
-          opt.classList.add('selected');
-        } else {
-          opt.classList.remove('selected');
-        }
-      });
-
-      updateButtonState();
-      closeDropdown();
-    }
-
-    // Event listeners
-    pathTrigger.addEventListener('click', toggleDropdown);
-
-    // Keyboard support for accessibility
-    pathTrigger.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        toggleDropdown();
-      }
-    });
-
-    pathDropdown.querySelectorAll('.path-option').forEach(option => {
-      option.addEventListener('click', () => {
-        selectPath(option.dataset.path);
-      });
-    });
-
-    // Close dropdown when clicking outside
-    document.addEventListener('click', (e) => {
-      if (!pathTrigger.contains(e.target) && !pathDropdown.contains(e.target)) {
-        closeDropdown();
-      }
-    });
-
-    // Close dropdown on Escape key
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && pathDropdown.classList.contains('show')) {
-        closeDropdown();
-        pathTrigger.focus();
-      }
-    });
+    if (scopeSelect) scopeSelect.addEventListener('change', updateScopeUI);
+    updateScopeUI();
 
     function showMessage(text, type) {
       messageDiv.textContent = text;
-      messageDiv.className = `subscribe-message message show ${type}`;
+      messageDiv.className = 'subscribe-message message show ' + type;
       if (type === 'success') setTimeout(() => messageDiv.classList.remove('show'), 5000);
     }
 
@@ -681,26 +675,19 @@ const defaultPath = getDefaultPath(path);
       modal.classList.add('show');
       modal.setAttribute('aria-hidden', 'false');
       document.body.style.overflow = 'hidden';
-    }
-
-    function closeModal() {
-      modal.classList.remove('show');
-      modal.setAttribute('aria-hidden', 'true');
-      document.body.style.overflow = '';
+      setBackdropInert(modal, true);
+      // Move focus into the dialog (SearchModal pattern).
+      modalClose.focus();
     }
 
     helpButton.addEventListener('click', openModal);
-    modalClose.addEventListener('click', closeModal);
-    modalOverlay.addEventListener('click', closeModal);
-
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && modal.classList.contains('show')) closeModal();
-    });
+    modalClose.addEventListener('click', closeSubscribeModal);
+    modalOverlay.addEventListener('click', closeSubscribeModal);
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const email = emailInput.value.trim();
-      const path = selectedPath;
+      const scope = currentScope();
       const baseUrl = form.dataset.baseUrl;
 
       if (!email) {
@@ -708,27 +695,31 @@ const defaultPath = getDefaultPath(path);
         return;
       }
 
-      if (!path) {
-        showMessage('Please select a path to subscribe to', 'error');
+      if (!scope.value) {
+        showMessage('Please choose what to subscribe to', 'error');
         return;
       }
 
+      // Pending pattern: disable + relabel only (no spinners, no layout shift).
       emailInput.disabled = true;
-      pathTrigger.style.pointerEvents = 'none';
-      pathTrigger.style.opacity = '0.6';
+      if (scopeSelect) scopeSelect.disabled = true;
       submitButton.disabled = true;
-      submitButton.textContent = 'Subscribing...';
+      submitButton.textContent = 'Subscribing…';
 
       try {
-        const res = await fetch(`${baseUrl}/subscribe`, {
+        const res = await fetch(baseUrl + '/subscribe', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, path })
+          body: JSON.stringify({ email, path: scope.value })
         });
         const data = await res.json();
 
         if (res.ok) {
-          showMessage(data.message || 'Subscription successful!', 'success');
+          // Restate the chosen scope in the first line of the success state.
+          const restated = scope.kind === 'article' ? 'just this article' : scope.label;
+          const lines = ["You're subscribed to " + restated + '.'];
+          if (data.message) lines.push(data.message);
+          showMessage(lines.join('\n'), 'success');
           emailInput.value = '';
         } else {
           showMessage(data.error || 'Failed to subscribe. Please try again.', 'error');
@@ -737,10 +728,8 @@ const defaultPath = getDefaultPath(path);
         showMessage('An error occurred. Please try again later.', 'error');
       } finally {
         emailInput.disabled = false;
-        pathTrigger.style.pointerEvents = '';
-        pathTrigger.style.opacity = '';
-        updateButtonState();
-        submitButton.textContent = 'Subscribe';
+        if (scopeSelect) scopeSelect.disabled = false;
+        updateScopeUI();
       }
     });
   };
@@ -753,4 +742,3 @@ const defaultPath = getDefaultPath(path);
 
   document.addEventListener('astro:page-load', initSubscribeForm);
 </script>
-

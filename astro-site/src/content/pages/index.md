@@ -26,6 +26,16 @@ To comprehend why and what is written in an article, its path and siblings matte
 
 This is an attempt at perfection.
 
+## Where to start
+
+If you're not sure which to read, three pieces stand on their own:
+
+- [Pain, Suffering and God](/self/pain-suffering-and-god/) — why I build, and what it costs.
+- [Tres mesos intentant construir software per a farmàcies](/humanity/orkava/) — the full autopsy of a startup that didn't work (in Catalan).
+- [Boxing](/self/sport/boxing/) — a year of getting hit, and what it settled.
+
+When you're done, the whole tree is right below — broader near the root, specifics deeper down.
+
 <br>
 
-_See how [this page](/meta) was built._
+_See how [this page](/meta/) was built._

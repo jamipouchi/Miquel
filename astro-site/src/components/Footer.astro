@@ -13,55 +13,59 @@ interface Props {
 const { currentSlug, path, skipComments } = Astro.props;
 ---
 
+<div class="footer-content">
+  <div class="footer-section nav-section">
+    <TreeNav currentSlug={currentSlug} />
+  </div>
+
+  <div class="footer-section subscribe-section">
+    <SubscribeForm path={path} />
+  </div>
+</div>
+
 {!skipComments && (
   <div class="comments-section">
     <CommentList path={path} />
     <CommentForm path={path} />
-    </div>
-  )}
+  </div>
+)}
 
 <footer class="site-footer">
-  <div class="footer-content">
-    <div class="footer-section nav-section">
-      <TreeNav currentSlug={currentSlug} />
-    </div>
-
-    <div class="footer-section subscribe-section">
-      <SubscribeForm path={path} />
-    </div>
-  </div>
+  <p class="footer-fineprint">
+    © {new Date().getFullYear()} Miquel Puig Turon · Written in plain markdown; the folder tree is the site.
+  </p>
 </footer>
 
-
-
 <style>
+  .footer-content {
+    margin-top: 4rem;
+    display: grid;
+    gap: 3rem;
+    max-width: 100%;
+  }
+
   .comments-section {
     margin-top: 3rem;
     margin-bottom: 2rem;
   }
 
   .site-footer {
-    margin-top: 4rem;
-    padding-top: 3rem;
-    border-top: 2px solid #e0e0e0;
+    margin-top: 3rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #e0e0e0;
   }
 
-  .footer-content {
-    display: grid;
-    gap: 3rem;
-    max-width: 100%;
+  .footer-fineprint {
+    margin: 0;
+    font-size: 0.8125rem;
+    color: #666;
   }
 
   .footer-section {
     width: 100%;
-  }
-
-  .subscribe-section {
-    order: 2;
-  }
-
-  .nav-section {
-    order: 1;
+    /* Grid children default to min-width:auto, so a nowrap tree label would
+       inflate the track (and the page) past the viewport. */
+    min-width: 0;
   }
 
   /* Adjust subscribe form styling for footer context */
@@ -75,17 +79,11 @@ const { currentSlug, path, skipComments } = Astro.props;
 
   @media (min-width: 768px) {
     .footer-content {
-      grid-template-columns: 1fr 1fr;
+      /* minmax(0, 1fr), not 1fr: lets the columns shrink below their content's
+         min width so long tree labels ellipsize instead of overflowing. */
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
       gap: 2rem;
       align-items: start;
-    }
-
-    .subscribe-section {
-      order: 2;
-    }
-
-    .nav-section {
-      order: 1;
     }
   }
 
@@ -95,4 +93,3 @@ const { currentSlug, path, skipComments } = Astro.props;
     }
   }
 </style>
-

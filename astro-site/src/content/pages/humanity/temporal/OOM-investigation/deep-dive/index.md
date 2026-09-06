@@ -1,6 +1,6 @@
 # OOM investigation > Enrich deep dive
 
-A sequel to the [conversation worker OOM](../): same class of problem, no single-line fix.
+A sequel to the [conversation worker OOM](/humanity/temporal/oom-investigation/): same class of problem, no single-line fix.
 
 After fixing the conversation worker, I expected the enrich worker to be boring. It wasn't crashing as dramatically, but it had the same smell: memory climbed with cached workflows and the bundle was much larger than it should have been.
 
