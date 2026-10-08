@@ -1,13 +1,6 @@
 # Sport
 
-I am in my prime, and I will keep on improving.
-
-Sport is the most rewarding thing in my life. \
-Last year I set goals: a sub-20 5k, and a sub-45 10k.
-
-My goal is to bench 100kg before end-of-year and run a sub-90 half marathon next year.
-
-Training shapes both my body and my mind.
+I strive for sport to be part of my live
 
 ## Past
 
@@ -15,7 +8,9 @@ Growing up I played tennis. I was good, competed at province level. I disliked t
 
 When it got to either train daily or stop competing at high level; I stopped.
 
-Since then I have barely done any sport. Two years ago I started boxing. Less than a year ago I started running consistently, boxing daily and going to the gym with a purpose.
+Since then I barely did any sport.
+
+At 23 I started boxing. At 24 I started running consistently, boxing daily and going to the gym with a purpose.
 
 In my first boxing fight I realized I'd lost my competitiveness. It felt bad. I was unsure if it would come back.
 
@@ -37,11 +32,5 @@ I recently did another fight, and I had my competitiveness back.
 My physique is improving. It makes me feel good.
 
 ## Future
-
-I want the first sentence of this page to be true for as long as I can.
-
-Right now I'm in a comfortable stage in my life, which makes it easy to dedicate time to sport. \
-I'd like for this to be forever true, but I know me, and I'll eventually invest myself in something else. \
-When that happens, I still want to push performance.
 
 I don't know the form my schedule may have, but I will keep growing.
