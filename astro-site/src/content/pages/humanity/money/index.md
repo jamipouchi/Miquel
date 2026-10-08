@@ -4,7 +4,7 @@ I believe few companies will monopolize the market.
 
 Money will mostly become meaningless, and almost everyone will both live in abundance and be ridiculously poor.
 
-## How money growths
+## How money grows
 For most people, money grows through salary and goes away via day to day expenses.
 
 Salaries grow slower than assets, and this compounds.
@@ -15,7 +15,7 @@ If someone starts from scratch, it will likely take its entire live to acquire 1
 If another starts from 1M$ of assets, it will likely end its live with 100M$ of assets.
 
 The math is simple, put your money in any vehicle that returns in proportion to its money:
-`d$/dt = k$` => $(t) = $_0 * e^kt
+```d$/dt = k$ => $(t) = $_0 * e^kt```
 
 To maintain the money difference with someone, you need to grow your money at the same rate he does.\
 If you add to your wealth X% MoM, in an infinite amount of time, you will be wealthier than anyone who adds less, no matter the initial amount.
