@@ -2,7 +2,7 @@
 
 I believe few companies will monopolize the market.
 
-Money will mostly become meaningless, as almost everyone will both live in abundance and be ridiculously poor.
+Money will mostly become meaningless, and almost everyone will both live in abundance and be ridiculously poor.
 
 ## How money growths
 For most people, money grows through salary and goes away via day to day expenses.
