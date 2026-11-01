@@ -27,7 +27,7 @@ export default defineConfig({
 	worker: {
 		// Kept from the old site Worker so the existing custom domain and
 		// deployment history carry over. (The old API Worker was
-		// `miquel-api-production`; it is retired — see docs/cf-migration.md.)
+		// `miquel-api-production`, deleted 2026-11-01 — see docs/cf-migration.md.)
 		name: "miquel",
 		compatibilityDate: "2026-10-23",
 		entrypoint: "./src/worker/index.ts",

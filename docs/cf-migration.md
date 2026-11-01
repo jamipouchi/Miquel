@@ -104,12 +104,12 @@ Worker:
    It's a no-op for the route, which `miquel` now owns, and applies the
    domain and `workersDev`/`previewUrls` settings.
 6. **Verify** `api.miquelpuigturon.com`.
-7. **Retire `miquel-api-production`** (`npx cf workers delete miquel-api-production`)
-   once nothing points at it — after the owner confirms.
+7. **Retire `miquel-api-production`** once nothing points at it, after the owner
+   confirms (`npx cf workers delete <worker-id> --force`).
 
-**Rollback:** repoint the route back to `miquel-api-production` (step 4 with the
-old script name) and redeploy the previous `miquel` version (see README,
-"Rolling back"). Both are possible until step 7.
+**Rollback (until step 7):** repoint the route back to `miquel-api-production`
+(step 4 with the old script name) and redeploy the previous `miquel` version
+(see README, "Rolling back").
 
 ## Cutover log — 2026-11-01 (times UTC)
 
@@ -128,9 +128,12 @@ injected script runs `fetch()` checks and writes the results into the page.
 | 17:19 | Verified `api.miquelpuigturon.com` on the new Worker: API at the root, 401/400/404 as expected, MCP `initialize` proxied (200), CORS preflight from the site passes. The two analytics rows these checks created were deleted. |
 | 17:20 | `npm run deploy` end-to-end from the committed tree → version `1897fdbf`. Also switched observability on: the split `versions create` + `deployments create` path doesn't apply Worker-level settings, `cf deploy` does. Secrets carried over (`keepSecrets`). Final smoke test of both hostnames passed. |
 
-Rollback targets: `miquel` version `f60ccd3f` (the pre-migration site, deployed
-2026-10-08); `miquel-api-production` version `c5dfffe7` (still deployed, now
-without routes).
+| 17:2x | `miquel-api-production` deleted (`npx cf workers delete <id> --force`), at the owner's request, after confirming no route, domain or `workers.dev` URL pointed at it. The `api.miquelpuigturon.com/*` route stayed on `miquel`. |
+
+Rollback: the old API Worker is gone, so rolling back to the two-Worker setup
+would mean redeploying the pre-migration code from git (commit `f532ead`). Within
+the new setup, `miquel` can roll back to any earlier version (see README,
+"Rolling back").
 
 Notes:
 - **`CONTACT_KEY`** in production is now the value from `.dev.vars`. It couldn't
