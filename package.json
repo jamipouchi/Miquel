@@ -1,0 +1,37 @@
+{
+  "name": "miquelpuigturon-com",
+  "description": "miquelpuigturon.com — Astro site + API, deployed as one Cloudflare Worker with the cf CLI.",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": "^22.23.0 || ^24.22.0 || >=26.12.0"
+  },
+  "scripts": {
+    "dev": "cf dev",
+    "build": "cf build",
+    "check": "cf workers types && astro check",
+    "deploy": "npm run check && cf deploy",
+    "types": "cf workers types",
+    "db:migrate:local": "cf d1 migrations apply 166fc1fc-543c-4355-84af-d7461d19e300 --local --persist-to .cloudflare/state",
+    "db:migrate:remote": "cf d1 migrations apply 166fc1fc-543c-4355-84af-d7461d19e300",
+    "subscribers": "node --env-file=.dev.vars scripts/decrypt-emails.ts",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "@astrojs/cloudflare": "15.0.0-beta.4",
+    "@astrojs/markdown-remark": "^7.3.5",
+    "@astrojs/mdx": "^8.1.2",
+    "astro": "^7.4.4",
+    "hono": "^4.13.16",
+    "unist-util-visit": "^5.2.0"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.12",
+    "@types/node": "^24.19.2",
+    "cf": "1.0.0-beta.26",
+    "typescript": "^6.0.3"
+  },
+  "allowScripts": {
+    "workerd@1.20261023.1": true
+  }
+}

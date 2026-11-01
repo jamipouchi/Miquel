@@ -1,0 +1,10 @@
+# Copy to .dev.vars (gitignored) and fill in. Read by `cf dev` and scripts/.
+# Production values are Worker secrets on `miquel` (see README → Secrets).
+
+# AES-GCM key, 64 hex chars (32 bytes). Encrypts subscriber/contact emails at
+# rest in D1. Must match production to decrypt production data.
+# Generate a fresh one: openssl rand -hex 32
+ENCRYPTION_KEY=
+
+# Bearer key for GET /api/metrics/webmcp and GET /api/contact/messages.
+CONTACT_KEY=
