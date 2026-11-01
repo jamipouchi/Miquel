@@ -111,9 +111,35 @@ Worker:
 old script name) and redeploy the previous `miquel` version (see README,
 "Rolling back"). Both are possible until step 7.
 
-## Cutover log
+## Cutover log — 2026-11-01 (times UTC)
 
-_Filled in when the cutover is executed._
+The operator's network was blocking every Cloudflare-proxied hostname (LaLiga
+match-day IP blocking in Spain; `api.cloudflare.com` was unaffected). So every
+live check ran **from Cloudflare's network** through Browser Rendering: a page is
+loaded with `npx cf browser-run quick-action content --add-script-tag …`, and an
+injected script runs `fetch()` checks and writes the results into the page.
+
+| Time | Step |
+|---|---|
+| 17:13 | `cf workers versions create --prebuilt --secrets-file .dev.vars` → version `9a3d13e8`, secrets stored as `secret_text`. Verified on that version's preview URL against production bindings: pages, markdown negotiation, api-catalog, `_redirects`, 404, `/_astro` caching, API validation, plus one D1 metrics write and one encrypted subscription (both test rows deleted afterwards). |
+| 17:16 | `cf workers deployments create` → `9a3d13e8` at 100% on `miquel`. Verified `miquelpuigturon.com` live (same checks, read-only) and that pages call `/api`. `api.miquelpuigturon.com` still on the old Worker, answering normally. |
+| 17:17 | Route `api.miquelpuigturon.com/*` (id `3a2c39b1…`) repointed from `miquel-api-production` to `miquel` with one `PUT /zones/…/workers/routes/…`. The unrelated `api.workout-tracker…` route was untouched. |
+| 17:17 | `cf workers triggers deploy --prebuilt`: route and apex custom domain confirmed. `workers.dev` and preview URLs off, by the owner's choice (made explicit in config afterwards). |
+| 17:19 | Verified `api.miquelpuigturon.com` on the new Worker: API at the root, 401/400/404 as expected, MCP `initialize` proxied (200), CORS preflight from the site passes. The two analytics rows these checks created were deleted. |
+| 17:20 | `npm run deploy` end-to-end from the committed tree → version `1897fdbf`. Also switched observability on: the split `versions create` + `deployments create` path doesn't apply Worker-level settings, `cf deploy` does. Secrets carried over (`keepSecrets`). Final smoke test of both hostnames passed. |
+
+Rollback targets: `miquel` version `f60ccd3f` (the pre-migration site, deployed
+2026-10-08); `miquel-api-production` version `c5dfffe7` (still deployed, now
+without routes).
+
+Notes:
+- **`CONTACT_KEY`** in production is now the value from `.dev.vars`. It couldn't
+  be compared with the old Worker's secret beforehand (secrets can't be read
+  back, and the live API was unreachable from the operator's network).
+  `ENCRYPTION_KEY` was confirmed identical: it decrypts all 14 production rows.
+- `cf d1 query` with several statements, or with `DELETE … WHERE … IN (SELECT …)`,
+  failed when run non-interactively; one simple statement per call worked.
+- Browser Rendering rate-limits quick actions to a few per minute; retry with backoff.
 
 ## Known issues found along the way (pre-existing, not changed)
 
