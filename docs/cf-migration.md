@@ -41,8 +41,10 @@ Made with the site owner:
 
 Made during the migration (each one keeps behaviour identical):
 
-- **Worker name `miquel`**, so the existing Custom Domain, `workers.dev` URL and
-  deployment history carry over.
+- **Worker name `miquel`**, so the existing Custom Domain and deployment history
+  carry over.
+- **No `workers.dev` URL and no preview URLs** (owner's choice; both were on
+  before). The Worker answers only on its two hostnames.
 - **`output: 'server'` with every route prerendered.** With `output: 'static'` the
   adapter goes "assets only" and silently drops a custom entrypoint.
   `integrations/static-pages-only.mjs` makes a forgotten `prerender = true` a
@@ -100,7 +102,7 @@ Worker:
    the cf CLI has no zone-routes command).
 5. **Reconcile triggers from config:** `npx cf workers triggers deploy --prebuilt`.
    It's a no-op for the route, which `miquel` now owns, and applies the
-   domain/`workers.dev` settings.
+   domain and `workersDev`/`previewUrls` settings.
 6. **Verify** `api.miquelpuigturon.com`.
 7. **Retire `miquel-api-production`** (`npx cf workers delete miquel-api-production`)
    once nothing points at it — after the owner confirms.

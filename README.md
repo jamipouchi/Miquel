@@ -136,8 +136,13 @@ the static assets, deploys it to 100% and applies the domain and route from
 ```bash
 npx cf deploy --dry-run                       # build + validate, upload nothing
 npx cf deploy --message "what changed"        # annotate the version
-npx cf workers versions create --preview-alias test   # upload without going live
+npx cf workers versions create                # upload a version without going live
 ```
+
+The Worker only answers on `miquelpuigturon.com` and `api.miquelpuigturon.com`.
+`workers.dev` and per-version preview URLs are deliberately off (`workersDev: false`,
+`previewUrls: false`). To try a build before it goes live, use `npx astro preview`
+locally (see "Local development").
 
 **Deploy from a committed tree.** Sitemap `<lastmod>` and RSS dates come from each
 page's last git commit. Uncommitted files fall back to their modification time,

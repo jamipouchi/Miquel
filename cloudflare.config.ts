@@ -25,8 +25,8 @@ const D1_DATABASE_ID = "166fc1fc-543c-4355-84af-d7461d19e300";
 
 export default defineConfig({
 	worker: {
-		// Kept from the old site Worker so the existing custom domain, workers.dev
-		// URL and deployment history carry over. (The old API Worker was
+		// Kept from the old site Worker so the existing custom domain and
+		// deployment history carry over. (The old API Worker was
 		// `miquel-api-production`; it is retired — see docs/cf-migration.md.)
 		name: "miquel",
 		compatibilityDate: "2026-10-23",
@@ -45,6 +45,11 @@ export default defineConfig({
 		triggers: [
 			triggers.fetch({ pattern: "api.miquelpuigturon.com/*", zone: "miquelpuigturon.com" }),
 		],
+
+		// Deliberately off: the Worker is reachable only on the two hostnames above.
+		// No miquel.<account>.workers.dev URL, no per-version preview URLs.
+		workersDev: false,
+		previewUrls: false,
 
 		observability: { enabled: true },
 
