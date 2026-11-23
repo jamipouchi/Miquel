@@ -45,7 +45,7 @@ The usual defense is that it's not bad for your health. This misses the point. H
 
 ### Love
 
-Being in love is the strongest addiction I have ever experienced. It robs you of everything, only that one girl matters.
+[Being in love](/self/amor-enamorament/) is the strongest addiction I have ever experienced. It robs you of everything, only that one girl matters.
 
 If mutual, this is the only addiction I would welcome. Even knowing the cost.
 
