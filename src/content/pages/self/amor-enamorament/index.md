@@ -12,7 +12,8 @@ Tinc enveja de qui 'sempre ha sortit des d'adolescent'. És una enveja semblant 
 
 Jo vull desig i absolut control.\
 El desig s'apaga amb la realitat, cosa que fa difícil començar.\
-El control s'aconsegueix amb algú que em reverencia, amb fe semblant a la que es té en Déu. M'avergonyeix quan funciona.
+El control s'aconsegueix amb algú que em té fe, com en Déu.\
+M'avergonyeix quan ho aconsegueixo.
 
 Estic cansat de no jugar, de buscar i crear desig per no consumir-lo. L'última tenia parella. Per això la vaig triar.
 
